@@ -329,7 +329,7 @@ LABEL_53:
 		printf("s");
 		printf("%x\n", v4);
 		printf("%x\n", v20);
-        v22 = (2 * v20);
+        v22 = *(_WORD *)((compressionTableWat+0x90)+(2 * v20));
 		printf("s");
         result = (unsigned int)(v3 - 1);
         do
