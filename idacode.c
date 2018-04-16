@@ -55,6 +55,345 @@ int8 __OFSUB__(int x, int y)
     return (sx ^ __SETS__(y2)) & (sx ^ __SETS__(x-y2));
 }
 
+_DWORD *__fastcall sub_260980(_DWORD *result, int *i, unsigned int a3, int a4)
+{
+  unsigned int v4; // r2
+  int *v5; // r1
+  int v6; // r4
+  int v7; // r5
+  int v8; // r6
+  int v9; // r7
+  int v10; // r8
+  int v11; // r9
+  int v12; // r10
+  _DWORD *v13; // r0
+  bool v14; // cf
+  int v15; // r4
+  int v16; // r12
+  int v17; // lr
+  int v18; // r4
+  int v19; // t1
+  unsigned __int8 v20; // cf
+  bool v21; // nf
+  signed int v22; // r2
+  __int16 v23; // t1
+
+  v14 = a3 >= 0x20;
+  v4 = a3 - 32;
+  if ( v14 )
+  {
+    a4 = *i;
+    v6 = i[1];
+    v7 = i[2];
+    v8 = i[3];
+    v5 = i + 4;
+    //__pld(v5 + 16);
+    v9 = *v5;
+    v10 = v5[1];
+    v11 = v5[2];
+    v12 = v5[3];
+    for ( i = v5 + 4; ; i += 4 )
+    {
+      *result = a4;
+      result[1] = v6;
+      result[2] = v7;
+      result[3] = v8;
+      v13 = result + 4;
+      v14 = v4 >= 0x20;
+      v4 -= 32;
+      *v13 = v9;
+      v13[1] = v10;
+      v13[2] = v11;
+      v13[3] = v12;
+      result = v13 + 4;
+      if ( v14 )
+      {
+        a4 = *i;
+        v6 = i[1];
+        v7 = i[2];
+        v8 = i[3];
+        i += 4;
+      }
+      //__pld(i + 16);
+      if ( !v14 )
+        break;
+      v9 = *i;
+      v10 = i[1];
+      v11 = i[2];
+      v12 = i[3];
+    }
+  }
+  if ( 1 /*__CFSHL__(v4, 28)*/ )
+  {
+    a4 = *i;
+    v15 = i[1];
+    v16 = i[2];
+    v17 = i[3];
+    i += 4;
+    *result = a4;
+    result[1] = v15;
+    result[2] = v16;
+    result[3] = v17;
+    result += 4;
+  }
+  if ( ((v4 << 28) & 0x80000000) != 0 )
+  {
+    a4 = *i;
+    v18 = i[1];
+    i += 2;
+    *result = a4;
+    result[1] = v18;
+    result += 2;
+  }
+  if ( 1 /*__CFSHL__(v4, 30)*/ )
+  {
+    v19 = *i;
+    ++i;
+    LOWORD(a4) = v19;
+    *result = v19;
+    ++result;
+  }
+  if ( v4 << 30 )
+  {
+    v20 = 1; //__CFSHL__(v4, 31);
+    v22 = v4 << 31;
+    v21 = v22 < 0;
+    if ( v20 )
+    {
+      v23 = *(_WORD *)i;
+      i = (int *)((char *)i + 2);
+      LOWORD(a4) = v23;
+    }
+    if ( v22 < 0 )
+      LOBYTE(v22) = *(_BYTE *)i;
+    if ( v20 )
+    {
+      *(_WORD *)result = a4;
+      result = (_DWORD *)((char *)result + 2);
+    }
+    if ( v21 )
+    {
+      *(_BYTE *)result = v22;
+      result = (_DWORD *)((char *)result + 1);
+    }
+  }
+  return result;
+}
+
+int __fastcall sub_2598C0(int result, int a2, int a3, int a4)
+{
+  unsigned int v4; // r12
+  char v5; // r3
+  char v6; // t1
+  bool v7; // cf
+  bool v8; // zf
+  int v9; // r2
+  char v10; // t1
+  char v11; // t1
+  bool v12; // cf
+  unsigned int v13; // r2
+  int *v14; // r1
+  int v15; // t1
+  int v16; // t1
+  int v17; // t1
+  unsigned __int8 v18; // cf
+  bool v19; // nf
+  int v20; // r2
+  char *v21; // r1
+  char v22; // t1
+  char v23; // t1
+  _BYTE *v24; // r0
+
+  if ( (unsigned int)a3 > 3 )
+  {
+    v4 = result & 3;
+    if ( result & 3 )
+    {
+      v6 = *(_BYTE *)a2++;
+      v5 = v6;
+      v7 = v4 >= 2;
+      v8 = v4 == 2;
+      v9 = a3 + v4;
+      if ( v4 <= 2 )
+      {
+        v10 = *(_BYTE *)a2++;
+        LOBYTE(v4) = v10;
+      }
+      *(_BYTE *)result++ = v5;
+      if ( !v7 )
+      {
+        v11 = *(_BYTE *)a2++;
+        v5 = v11;
+      }
+      if ( v8 || !v7 )
+        *(_BYTE *)result++ = v4;
+      a3 = v9 - 4;
+      if ( !v7 )
+        *(_BYTE *)result++ = v5;
+    }
+    LOBYTE(a4) = a2 & 3;
+    if ( !(a2 & 3) )
+      return (int)sub_260980((_DWORD *)result, (int *)a2, a3, 0);
+    v12 = (unsigned int)a3 >= 8;
+    v13 = a3 - 8;
+    while ( v12 )
+    {
+      v15 = *(_DWORD *)a2;
+      v14 = (int *)(a2 + 4);
+      a4 = v15;
+      v12 = v13 >= 8;
+      v13 -= 8;
+      v16 = *v14;
+      a2 = (int)(v14 + 1);
+      LOBYTE(v4) = v16;
+      *(_DWORD *)result = a4;
+      *(_DWORD *)(result + 4) = v16;
+      result += 8;
+    }
+    a3 = v13 + 4;
+    if ( a3 >= 0 )
+    {
+      v17 = *(_DWORD *)a2;
+      a2 += 4;
+      LOBYTE(a4) = v17;
+      *(_DWORD *)result = v17;
+      result += 4;
+    }
+  }
+  v18 = 1;//__CFSHL__(a3, 31);
+  v20 = a3 << 31;
+  v19 = v20 < 0;
+  if ( v18 )
+  {
+    v22 = *(_BYTE *)a2;
+    v21 = (char *)(a2 + 1);
+    LOBYTE(a4) = v22;
+    v23 = *v21;
+    a2 = (int)(v21 + 1);
+    LOBYTE(v4) = v23;
+  }
+  if ( v20 < 0 )
+    LOBYTE(v20) = *(_BYTE *)a2;
+  if ( v18 )
+  {
+    *(_BYTE *)result = a4;
+    v24 = (_BYTE *)(result + 1);
+    *v24 = v4;
+    result = (int)(v24 + 1);
+  }
+  if ( v19 )
+    *(_BYTE *)result++ = v20;
+  return result;
+}
+
+int __fastcall sub_249674(unsigned int a1, unsigned int a2, unsigned int a3)
+{
+  char v3; // r12
+  bool v4; // cf
+  bool v5; // zf
+  unsigned int v6; // r3
+  int result; // r0
+  int v8; // r1
+  bool v9; // zf
+  char v10; // t1
+  bool v11; // cf
+  unsigned int v12; // r2
+  int v13; // r1
+  unsigned int v14; // t1
+  int v15; // t1
+  int v16; // r0
+  int v17; // t1
+  unsigned __int8 v18; // cf
+  bool v19; // nf
+  signed int v20; // r2
+  int v21; // r1
+  char v22; // t1
+  char v23; // t1
+  int v24; // r0
+
+  v4 = a1 >= a2;
+  v6 = a1 - a2;
+  v5 = a1 == a2;
+  if ( a1 >= a2 )
+  {
+    v4 = a3 >= v6;
+    v5 = a3 == v6;
+  }
+  if ( v5 || !v4 )
+    return sub_2598C0(a1, a2, a3, v6);
+  result = a1 + a3;
+  v8 = a2 + a3;
+  if ( a3 > 3 )
+  {
+    v9 = (result & 3) == 0;
+    do
+    {
+      if ( !v9 )
+      {
+        v10 = *(_BYTE *)(v8-- - 1);
+        --a3;
+        *(_BYTE *)(result-- - 1) = v10;
+      }
+      v9 = (result & 3) == 0;
+    }
+    while ( result & 3 );
+    LOBYTE(v6) = v8 & 3;
+    if ( !(v8 & 3) )
+	  system("pause");
+      //JUMPOUT(&loc_134584);
+    v11 = a3 >= 8;
+    v12 = a3 - 8;
+    while ( v11 )
+    {
+      v14 = *(_DWORD *)(v8 - 4);
+      v13 = v8 - 4;
+      v6 = v14;
+      v11 = v12 >= 8;
+      v12 -= 8;
+      v15 = *(_DWORD *)(v13 - 4);
+      v8 = v13 - 4;
+      v3 = v15;
+      *(_DWORD *)(result - 4) = v6;
+      v16 = result - 4;
+      *(_DWORD *)(v16 - 4) = v15;
+      result = v16 - 4;
+    }
+    a3 = v12 + 4;
+    if ( (a3 & 0x80000000) == 0 )
+    {
+      v17 = *(_DWORD *)(v8 - 4);
+      v8 -= 4;
+      LOBYTE(v6) = v17;
+      *(_DWORD *)(result - 4) = v17;
+      result -= 4;
+    }
+  }
+  v18 = 1; //__CFSHL__(a3, 31);
+  v20 = a3 << 31;
+  v19 = v20 < 0;
+  if ( v18 )
+  {
+    v22 = *(_BYTE *)(v8 - 1);
+    v21 = v8 - 1;
+    LOBYTE(v6) = v22;
+    v23 = *(_BYTE *)(v21 - 1);
+    v8 = v21 - 1;
+    v3 = v23;
+  }
+  if ( v20 < 0 )
+    LOBYTE(v20) = *(_BYTE *)(v8 - 1);
+  if ( v18 )
+  {
+    *(_BYTE *)(result - 1) = v6;
+    v24 = result - 1;
+    *(_BYTE *)(v24 - 1) = v3;
+    result = v24 - 1;
+  }
+  if ( v19 )
+    *(_BYTE *)(result - 1) = v20;
+  return result;
+}
+
 unsigned int __fastcall sub_239F08(unsigned __int8 *a1, int a2)
 {
   int v2; // r3
@@ -186,7 +525,8 @@ unsigned int __fastcall sub_186B7C(int a1, unsigned short *a2, signed int a3)
     if ( (unsigned __int8)(v11 ^ v12) | v10 )
     {
 LABEL_36:
-      printf("uhoh");
+      //system("pause");
+      sub_249674(result, v13, a3);
     }
     else
     {
@@ -428,6 +768,7 @@ LABEL_53:
         v3[6] = result;
         goto LABEL_53;
       case 4:
+	    printf("case 4\n");
         v50 = (unsigned __int8)sub_239F08((unsigned __int8 *)v4, 8);
 		printf("v4: %x\n", v4);
 		printf("v50: %x\n", v50);
@@ -450,7 +791,8 @@ LABEL_53:
             result = sub_239F08((unsigned __int8 *)v4, 13);
 		  }
           ++v51;
-		  //printf("s");
+		  printf("Result: %x \n",result);
+		  //system("pause");
           *v3 = result;
           ++v3;
         }
@@ -529,6 +871,9 @@ int main(){
 	fread((aTable),1,0x1000,table2);
 	
 	
+	FILE* layerOutPrev = fopen("layerOutPrev.bin", "rb");
+	
+	
 	unsigned char* layerdata = malloc(0xffff);
 	printf("%x\n", layerdata);
 	
@@ -541,11 +886,16 @@ int main(){
 	layerinfo[1] = layerdata;
 	layerinfo[2] = layerdata;
 	layerinfo[2] += 2;
-	layerinfo[3] = 0;
+	layerinfo[3] = (layerdata[1] << 8) | layerdata[0];
 	printf("%x %x %x %x\n", layerinfo[0], layerinfo[1], layerinfo[2], layerinfo[3]);
 	
 	unsigned char* out1 = layerinfo+(0x150/4);
-	unsigned char* out2 = 0x14e7ddb0;
+	unsigned char* prevFrame = malloc(0x9600);
+	
+	
+	fread(prevFrame,1,0x4B00,layerOutPrev);
+	
+	
 	printf("%x\n", layerinfo);
 	printf("%x\n", out1);
 	//system("pause");
@@ -554,19 +904,19 @@ int main(){
 	
 	for(int i = 0; i < 0x4b0; i++){
 		
-		printf("return: %x\n", sub_186B7C(layerinfo,out1,out2));
+		printf("return: %x\n", sub_186B7C(layerinfo,out1,prevFrame));
 		
 		printf("aaa %x %x\n", (_WORD *)(writeOut), *(_WORD *)(writeOut+0x752));
 		
-		if(*(_WORD *)(writeOut+0x742) == 0x2f98){
+		if(*(_WORD *)(out1) == 0x0004){
 			printf("%x\n",*(out1+(0xe)));
 			system("pause");
 		}
 		
-		system("pause");
+		//system("pause");
 		
 		out1 += 0x10;
-		out2 += 0x10;
+		prevFrame += 0x10;
 		
 		//layerinfo[3] = *(_WORD *)(layerinfo[2]-2);
 		
@@ -576,18 +926,18 @@ int main(){
 		
 		printf("sss");
 		
-		FILE* layerO = fopen("layerOut.bin", "wb");
+		/*FILE* layerO = fopen("layerOut.bin", "wb");
 	
 		fwrite(writeOut,1,0x9600,layerO);
 	
-		fclose(layerO);
+		fclose(layerO);*/
 		
 	}
 	
 	
 	FILE* layerO = fopen("layerOut.bin", "wb");
 	
-	fwrite(writeOut,1,0x9600,layerO);
+	fwrite(writeOut,1,0x4B00,layerO);
 	
 	fclose(layerO);
 	
