@@ -8,8 +8,9 @@ def ROR(value, bits):
   return ((value >> bits) | (value << (32 - bits))) & 0xFFFFFFFF
 
 class Decompressor:
-  def __init__(self, table1, table3, table4):
+  def __init__(self, table1, table2, table3, table4):
     self.table1 = table1
+    self.table2 = struct.unpack("<%iI" %(len(table2) // 4), table2)
     self.table3 = struct.unpack("<32I", table3)
     self.table4 = struct.unpack("<32H", table4)
         
@@ -56,14 +57,23 @@ class Decompressor:
 
     elif type == 2:
       index1 = self.bits(5)
-      index2 = ROR(self.table3[index1], 4) #Why are they rotating the bits?
+      index2 = ROR(self.table3[index1], 4)
       v1 = self.table1[index2 & 0xFF]
       v2 = self.table1[(index2 >> 8) & 0xFF]
       v3 = self.table1[(index2 >> 16) & 0xFF]
       v4 = self.table1[index2 >> 24]
-
       x = self.table4[index1]
-      y = ((v1 * 9 + v2) * 9 + v3) * 9 + v4 #Wtf?
+      y = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
+      return self.make_chunk([x, y, x, y, x, y, x, y])
+
+    elif type == 3:
+      x = self.bits(13)
+      index = ROR(self.table2[x], 4)
+      v1 = self.table1[index & 0xFF]
+      v2 = self.table1[(index >> 8) & 0xFF]
+      v3 = self.table1[(index >> 16) & 0xFF]
+      v4 = self.table1[index >> 24]
+      y = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
       return self.make_chunk([x, y, x, y, x, y, x, y])
 
     elif type == 4:
@@ -80,6 +90,10 @@ class Decompressor:
       length = self.bits(5) + 1
       offset = len(self.output)
       return self.prev[offset : offset + length * 0x10]
+
+    # type 6 seems to be unused
+    elif type == 6:
+      print("Found tile type 6 -- this is not implemented")
 
     elif type == 7:
       pattern = self.bits(2)
@@ -103,13 +117,13 @@ class Decompressor:
         
 
 class KWZParser:
-  def __init__(self, buffer, table1, table3, table4, linedefs):
+  def __init__(self, buffer, table1, table2, table3, table4, linedefs):
     self.buffer = buffer
     # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
     self.buffer.seek(0, 2)
     self.size = self.buffer.tell() - 256
     self.buffer.seek(0, 0)
-    self.decompressor = Decompressor(table1, table3, table4)
+    self.decompressor = Decompressor(table1, table2, table3, table4)
     self.linedefs = np.frombuffer(linedefs, dtype=np.uint8).reshape(-1, 8)
     # build list of section offsets + lengths
     self.sections = {}
@@ -256,16 +270,17 @@ class frameSurface:
 
 with open(argv[1], "rb") as kwz:
   with open(argv[2], "rb") as f: table1 = f.read()
-  with open(argv[3], "rb") as f: table3 = f.read()
-  with open(argv[4], "rb") as f: table4 = f.read()
-  with open(argv[5], "rb") as f: linedefs = f.read()
+  with open(argv[3], "rb") as f: table2 = f.read()
+  with open(argv[4], "rb") as f: table3 = f.read()
+  with open(argv[5], "rb") as f: table4 = f.read()
+  with open(argv[6], "rb") as f: linedefs = f.read()
 
-  parser = KWZParser(kwz, table1, table3, table4, linedefs)
+  parser = KWZParser(kwz, table1, table2, table3, table4, linedefs)
 
   palette = [
     (0xff, 0xff, 0xff),
     (0x14, 0x14, 0x14),
-    (0xff, 0x17, 0x17),
+    (0xff, 0x45, 0x45),
     (0xff, 0xe6, 0x00),
     (0x00, 0x82, 0x32),
     (0x06, 0xAE, 0xff),
