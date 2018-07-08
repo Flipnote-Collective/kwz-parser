@@ -14,7 +14,6 @@ class KWZParser:
     self.buffer.seek(0, 2)
     self.size = self.buffer.tell() - 256
     self.buffer.seek(0, 0)
-    self.linedefs = np.frombuffer(linedefs, dtype=np.uint8).reshape(-1, 8)
     # build list of section offsets + lengths
     self.sections = {}
     offset = 0
@@ -25,22 +24,26 @@ class KWZParser:
       offset += length + 8
 
     # build frame meta list + frame offset list
-    self.frameMeta = []
-    self.frameOffsets = []
+    self.frame_meta = []
+    self.frame_offsets = []
     self.frameCount = self.sections["KMI"]["length"] // 28
     self.buffer.seek(self.sections["KMI"]["offset"] + 8)
     offset = self.sections["KMC"]["offset"] + 12
+
     for i in range(self.frameCount):
       meta = struct.unpack("<IHHH10xBBBBI", self.buffer.read(28))
-      self.frameMeta.append(meta)
-      self.frameOffsets.append(offset)
+      self.frame_meta.append(meta)
+      self.frame_offsets.append(offset)
       offset += meta[1] + meta[2] + meta[3]
 
     self.table1 = table1
     self.table2 = np.frombuffer(table2, dtype=np.uint32)
     self.table3 = np.frombuffer(table3, dtype=np.uint32)
     self.table4 = np.frombuffer(table4, dtype=np.uint16)
+    self.linedefs = np.frombuffer(linedefs, dtype=np.uint8)
+    # raw layer buffers
     self.layers = np.zeros((3, 1200 * 8), dtype=np.uint16)
+    # layer buffers w/ rearranged tiles 
     self.arranged_layers = np.zeros((3, 240, 320), dtype=np.uint16)
     self.bit_index = 16
     self.bit_value = 0
@@ -137,25 +140,26 @@ class KWZParser:
         layer_offset += 8
 
   def get_frame_palette(self, index):
-    flags = self.frameMeta[index][0]
+    flags = self.frame_meta[index][0]
     return [
       (flags >> 0) & 0xF,
-      (flags >> 12) & 0xF,
       (flags >> 8) & 0xF,
-      (flags >> 20) & 0xF,
+      (flags >> 12) & 0xF,
       (flags >> 16) & 0xF,
-      (flags >> 28) & 0xF,
+      (flags >> 20) & 0xF,
       (flags >> 24) & 0xF,
+      (flags >> 28) & 0xF,
     ]
 
   def decode_frame(self, index):
-    meta = self.frameMeta[index]
-    self.buffer.seek(self.frameOffsets[index])
+    meta = self.frame_meta[index]
+    self.buffer.seek(self.frame_offsets[index])
 
     # loop through layers
     for layer_index in range(3):
       layer_length = meta[layer_index + 1]
       layer_buffer = self.layers[layer_index]
+      result_buffer = self.arranged_layers[layer_index]
       # data = self.buffer.read(layer_length)
       # decode layer into layer_buffer
       self.decode_layer(layer_buffer)
@@ -184,12 +188,9 @@ class KWZParser:
                 # in certain cases we have to flip the endianess because... of course?
                 if lineValue > 0x3340:
                   lineValue = ((lineValue) >> 8) | ((lineValue & 0x00FF) << 8)
-                lineValue //= 2
-                
-                line = self.linedefs[lineValue]
-                # loop through each pixel in the line
-                for pixelIndex in range(0, 8):
-                  self.arranged_layers[layer_index][y + lineIndex][x + pixelIndex] = line[pixelIndex]
+
+                lineValue *= 8
+                result_buffer[y + lineIndex][x : x + 8] = self.linedefs[lineValue:lineValue + 8]
                 layer_offset += 1
 
     return self.arranged_layers
@@ -243,11 +244,11 @@ class frameSurface:
 
 
 with open(argv[1], "rb") as kwz:
-  with open(argv[2], "rb") as f: table1 = f.read()
-  with open(argv[3], "rb") as f: table2 = f.read()
-  with open(argv[4], "rb") as f: table3 = f.read()
-  with open(argv[5], "rb") as f: table4 = f.read()
-  with open(argv[6], "rb") as f: linedefs = f.read()
+  with open("comptable1.bin", "rb") as f: table1 = f.read()
+  with open("comptable2.bin", "rb") as f: table2 = f.read()
+  with open("comptable3.bin", "rb") as f: table3 = f.read()
+  with open("comptable4.bin", "rb") as f: table4 = f.read()
+  with open("linedefs.bin", "rb") as f: linedefs = f.read()
 
   parser = KWZParser(kwz, table1, table2, table3, table4, linedefs)
 
