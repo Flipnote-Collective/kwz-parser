@@ -24,18 +24,22 @@ class KWZParser:
       self.sections[str(magic, 'utf-8')] = {"offset": offset, "length": length}
       offset += length + 8
 
-    # build frame meta list
+    # build frame meta list + frame offset list
     self.frameMeta = []
-    frameCount = self.sections["KMI"]["length"] // 28
+    self.frameOffsets = []
+    self.frameCount = self.sections["KMI"]["length"] // 28
     self.buffer.seek(self.sections["KMI"]["offset"] + 8)
-    for i in range(frameCount):
-      self.frameMeta.append(struct.unpack("<IHHH10xBBBBI", self.buffer.read(28)))
+    offset = self.sections["KMC"]["offset"] + 12
+    for i in range(self.frameCount):
+      meta = struct.unpack("<IHHH10xBBBBI", self.buffer.read(28))
+      self.frameMeta.append(meta)
+      self.frameOffsets.append(offset)
+      offset += meta[1] + meta[2] + meta[3]
 
-    self.prev = [b"", b"", b""]
     self.table1 = table1
-    self.table2 = struct.unpack("<%iI" %(len(table2) // 4), table2)
-    self.table3 = struct.unpack("<32I", table3)
-    self.table4 = struct.unpack("<32H", table4)
+    self.table2 = np.frombuffer(table2, dtype=np.uint32)
+    self.table3 = np.frombuffer(table3, dtype=np.uint32)
+    self.table4 = np.frombuffer(table4, dtype=np.uint16)
     self.layers = np.zeros((3, 1200 * 8), dtype=np.uint16)
     self.arranged_layers = np.zeros((3, 240, 320), dtype=np.uint16)
     self.bit_index = 16
@@ -145,14 +149,8 @@ class KWZParser:
     ]
 
   def decode_frame(self, index):
-    # get frame offset
-    offset = self.sections["KMC"]["offset"] + 12
-    for i in range(index):
-      meta = self.frameMeta[i]
-      offset += meta[1] + meta[2] + meta[3]
-
     meta = self.frameMeta[index]
-    self.buffer.seek(offset)
+    self.buffer.seek(self.frameOffsets[index])
 
     # loop through layers
     for layer_index in range(3):
