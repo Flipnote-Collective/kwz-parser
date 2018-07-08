@@ -126,10 +126,9 @@ class KWZParser:
           y = self.read_bits(13)
 
         if pattern == 0: layer_buffer[layer_offset:layer_offset + 8] = [x, y, x, y, x, y, x, y]
-        elif pattern == 1: layer_buffer[layer_offset:layer_offset + 8] = [x, x, y, x, x, y, x, y]
+        elif pattern == 1: layer_buffer[layer_offset:layer_offset + 8] = [x, x, y, x, x, y, x, x]
         elif pattern == 2: layer_buffer[layer_offset:layer_offset + 8] = [x, y, x, x, y, x, x, y]
-        elif pattern == 3: 
-          layer_buffer[layer_offset:layer_offset + 8] = [x, y, y, x, y, y, x, y]
+        elif pattern == 3: layer_buffer[layer_offset:layer_offset + 8] = [x, y, y, x, y, y, x, y]
 
         layer_offset += 8
 
