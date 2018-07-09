@@ -5,7 +5,7 @@ def ROR(value, bits):
   return ((value >> bits) | (value << (32 - bits))) & 0xFFFFFFFF
 
 class KWZParser:
-  def __init__(self, buffer, table1, table2, table3, table4, linetable):
+  def __init__(self, buffer, linetable):
     self.buffer = buffer
     # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
     self.buffer.seek(0, 2)
@@ -34,10 +34,42 @@ class KWZParser:
       self.frame_offsets.append(offset)
       offset += meta[1] + meta[2] + meta[3]
 
-    self.table1 = table1
-    self.table2 = np.frombuffer(table2, dtype=np.uint32)
-    self.table3 = np.frombuffer(table3, dtype=np.uint32)
-    self.table4 = np.frombuffer(table4, dtype=np.uint16)
+    self.table1 = np.full((256), 0x8, dtype=np.uint8)
+    self.table1[0] = 0x00
+    self.table1[1] = 0x01
+    self.table1[15] = 0x02
+    self.table1[16] = 0x03
+    self.table1[17] = 0x04
+    self.table1[31] = 0x05
+    self.table1[240] = 0x06
+    self.table1[241] = 0x07
+    self.table2 = np.zeros((6561), dtype=np.uint32)
+    values = [0, 1, 0xF, 0x10, 0x11, 0x1F, 0xF0, 0xF1, 0xFF]
+    index = 0
+    for a in range(9):
+      for b in range(9):
+        for c in range(9):
+          for d in range(9):
+            value = (values[a] << 24) | (values[b] << 16) | (values[c] << 8) | values[d]
+            self.table2[index] = value
+            index += 1
+    self.table3 = np.array([
+      0x00000000, 0x11111111, 0xFFFFFFFF, 0x00000001, 
+      0x00000010, 0x00000100, 0x00001000, 0x00010000, 
+      0x00100000, 0x01000000, 0x10000000, 0x0000000F, 
+      0x000000F0, 0x00000F00, 0x0000F000, 0x000F0000, 
+      0x00F00000, 0x0F000000, 0xF0000000, 0x00000011, 
+      0x00000110, 0x00001100, 0x00011000, 0x00110000,
+      0x01100000, 0x11000000, 0x01010101, 0x10101010, 
+      0x0F0F0F0F, 0xF0F0F0F0, 0x1F1F1F1F, 0xF1F1F1F1
+    ], dtype=np.uint32)
+    self.table4 = np.array([
+      0x0000, 0x0CD0, 0x19A0, 0x02D9, 0x088B, 0x0051, 0x00F3, 0x0009,
+      0x001B, 0x0001, 0x0003, 0x05B2, 0x1116, 0x00A2, 0x01E6, 0x0012,
+      0x0036, 0x0002, 0x0006, 0x0B64, 0x08DC, 0x0144, 0x00FC, 0x0024,
+      0x001C, 0x0004, 0x0334, 0x099C, 0x0668, 0x1338, 0x1004, 0x166C
+    ], dtype=np.uint16)
+
     self.linetable = np.frombuffer(linetable, dtype="V8")
     # layer buffers w/ rearranged tiles 
     self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
