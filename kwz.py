@@ -42,8 +42,6 @@ class KWZParser:
     self.table3 = np.frombuffer(table3, dtype=np.uint32)
     self.table4 = np.frombuffer(table4, dtype=np.uint16)
     self.linetable = np.frombuffer(linetable, dtype="V8")
-    # raw layer buffers
-    self.layers = np.zeros((3, 1200 * 8), dtype=np.uint16)
     # layer buffers w/ rearranged tiles 
     self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
     self.bit_index = 16
@@ -61,84 +59,6 @@ class KWZParser:
     self.bit_value >>= num
     self.bit_index += num
     return result
-
-  def decode_layer(self, layer_buffer):
-    self.bit_index = 16
-    self.bit_value = 0
-    layer_offset = 0
-    while layer_offset < 9600:
-      type = self.read_bits(3)
-
-      if type == 0:
-        value = self.table4[self.read_bits(5)]
-        layer_buffer[layer_offset:layer_offset + 8] = value
-        layer_offset += 8
-      
-      elif type == 1:
-        value = self.read_bits(13)
-        layer_buffer[layer_offset:layer_offset + 8] = value
-        layer_offset += 8
-      
-      elif type == 2:
-        index1 = self.read_bits(5)
-        index2 = ROR(self.table3[index1], 4)
-        v1 = self.table1[index2 & 0xFF]
-        v2 = self.table1[(index2 >> 8) & 0xFF]
-        v3 = self.table1[(index2 >> 16) & 0xFF]
-        v4 = self.table1[index2 >> 24]
-        x = self.table4[index1]
-        y = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
-        layer_buffer[layer_offset:layer_offset + 8] = [x, y, x, y, x, y, x, y]
-        layer_offset += 8
-      
-      elif type == 3:
-        x = self.read_bits(13)
-        index = ROR(self.table2[x], 4)
-        v1 = self.table1[index & 0xFF]
-        v2 = self.table1[(index >> 8) & 0xFF]
-        v3 = self.table1[(index >> 16) & 0xFF]
-        v4 = self.table1[index >> 24]
-        y = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
-        layer_buffer[layer_offset:layer_offset + 8] = [x, y, x, y, x, y, x, y]
-        layer_offset += 8
-      
-      elif type == 4:
-        mask = self.read_bits(8)
-        for i in range(8):
-          if mask & (1 << i):
-            layer_buffer[layer_offset] = self.table4[self.read_bits(5)]
-          else:
-            layer_buffer[layer_offset] = self.read_bits(13)
-          layer_offset += 1
-
-      # skip n tiles because they haven't changed since the previous frame
-      elif type == 5:
-        length = self.read_bits(5) + 1
-        layer_offset += length * 8
-      
-      # type 6 doesn't seem to be used
-      elif type == 6:
-        print("Found tile type 6 -- this is not implemented")
-        layer_offset += 8
-
-      elif type == 7:
-        pattern = self.read_bits(2)
-        use_table = self.read_bits(1)
-
-        if use_table:
-          x = self.table4[self.read_bits(5)]
-          y = self.table4[self.read_bits(5)]
-          pattern = (pattern + 1) % 4
-        else:
-          x = self.read_bits(13)
-          y = self.read_bits(13)
-
-        if pattern == 0: layer_buffer[layer_offset:layer_offset + 8] = [x, y, x, y, x, y, x, y]
-        elif pattern == 1: layer_buffer[layer_offset:layer_offset + 8] = [x, x, y, x, x, y, x, x]
-        elif pattern == 2: layer_buffer[layer_offset:layer_offset + 8] = [x, y, x, x, y, x, x, y]
-        elif pattern == 3: layer_buffer[layer_offset:layer_offset + 8] = [x, y, y, x, y, y, x, y]
-
-        layer_offset += 8
 
   def get_frame_flag(self, index):
     flags = self.frame_meta[index][0]
@@ -163,13 +83,16 @@ class KWZParser:
     # loop through layers
     for layer_index in range(3):
       layer_length = meta[layer_index + 1]
-      layer_buffer = self.layers[layer_index]
       pixel_buffer = self.layer_pixels[layer_index]
       # data = self.buffer.read(layer_length)
       # decode layer into layer_buffer
-      self.decode_layer(layer_buffer)
+      # self.decode_layer(layer_buffer)
+      self.bit_index = 16
+      self.bit_value = 0
       layer_offset = 0
-      tileIndex = 0
+      skip = 0
+      # tile work buffer
+      tile_buffer = np.zeros((8), dtype="V8")
 
       # loop through 128 * 128 large tiles
       for tile_offset_y in range(0, 240, 128):
@@ -183,16 +106,88 @@ class KWZParser:
             for sub_tile_offset_x in range(0, 128, 8):
               x = tile_offset_x + sub_tile_offset_x
               # if the tile falls off the right of the frame, jump to the next small tile row
-              if x >= 320: break
+              if x >= 320: 
+                break
+
+              if skip: 
+                skip -= 1
+                continue
+
+              # decode tile
+              type = self.read_bits(3)
+
+              if type == 0:
+                line_value = self.table4[self.read_bits(5)]
+                tile_buffer[0:8] = self.linetable[line_value]
+
+              elif type == 1:
+                line_value = self.read_bits(13)
+                tile_buffer[0:8] = self.linetable[line_value]
+
+              elif type == 2:
+                index1 = self.read_bits(5)
+                index2 = ROR(self.table3[index1], 4)
+                v1 = self.table1[index2 & 0xFF]
+                v2 = self.table1[(index2 >> 8) & 0xFF]
+                v3 = self.table1[(index2 >> 16) & 0xFF]
+                v4 = self.table1[index2 >> 24]
+                a_value = self.table4[index1]
+                b_value = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
+                a = self.linetable[a_value]
+                b = self.linetable[b_value]
+                tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
               
-              # unpack the 8*8 tile - (x, y) gives the position of the tile's top-left pixel
+              elif type == 3:
+                a_value = self.read_bits(13)
+                index = ROR(self.table2[x], 4)
+                v1 = self.table1[index & 0xFF]
+                v2 = self.table1[(index >> 8) & 0xFF]
+                v3 = self.table1[(index >> 16) & 0xFF]
+                v4 = self.table1[index >> 24]
+                b_value = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
+                a = self.linetable[a_value]
+                b = self.linetable[b_value]
+                tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
+
+              elif type == 4:
+                mask = self.read_bits(8)
+                for i in range(8):
+                  if mask & (1 << i):
+                    line_value = self.table4[self.read_bits(5)]
+                  else:
+                    line_value = self.read_bits(13)
+                  tile_buffer[i] = self.linetable[line_value]
+
+              elif type == 5:
+                skip = self.read_bits(5)
+                continue
+              
+              elif type == 6:
+                print("Found tile type 6 -- this is not implemented")
+              
+              elif type == 7:
+                pattern = self.read_bits(2)
+                use_table = self.read_bits(1)
+                
+                if use_table:
+                  a_value = self.table4[self.read_bits(5)]
+                  b_value = self.table4[self.read_bits(5)]
+                  pattern = (pattern + 1) % 4
+                else:
+                  a_value = self.read_bits(13)
+                  b_value = self.read_bits(13)
+
+                a = self.linetable[a_value]
+                b = self.linetable[b_value]
+
+                if pattern == 0: tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
+                if pattern == 1: tile_buffer[0:8] = [a, a, b, a, a, b, a, a]
+                if pattern == 2: tile_buffer[0:8] = [a, b, a, a, b, a, a, b]
+                if pattern == 3: tile_buffer[0:8] = [a, b, b, a, b, b, a, b]
+                  
+              # copy each line of the tile into the layer's pixel buffer
               for line_index in range(0, 8):
-                # get the line data
-                # each line is defined as an uint16 offset into a table of all possible line values
-                line_value = layer_buffer[layer_offset]
-                # line_value *= 8
-                pixel_buffer[y + line_index][x // 8] = self.linetable[line_value]
-                layer_offset += 1
+                pixel_buffer[y + line_index][x // 8] = tile_buffer[line_index]
 
     return self.layer_pixels
 
@@ -279,7 +274,7 @@ with open(argv[1], "rb") as kwz:
 
     frame.set_layers(parser.decode_frame(frameIndex))
     frame.set_colors(parser.get_frame_palette(frameIndex), palette)
-    print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
+    # print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
     if frameIndex == parser.frameCount - 1:
       frameIndex = 0
     else:
