@@ -41,11 +41,11 @@ class KWZParser:
     self.table2 = np.frombuffer(table2, dtype=np.uint32)
     self.table3 = np.frombuffer(table3, dtype=np.uint32)
     self.table4 = np.frombuffer(table4, dtype=np.uint16)
-    self.linetable = np.frombuffer(linetable, dtype=np.uint8)
+    self.linetable = np.frombuffer(linetable, dtype="V8")
     # raw layer buffers
     self.layers = np.zeros((3, 1200 * 8), dtype=np.uint16)
     # layer buffers w/ rearranged tiles 
-    self.layer_pixels = np.zeros((3, 240, 320), dtype=np.uint16)
+    self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
     self.bit_index = 16
     self.bit_value = 0
 
@@ -194,8 +194,8 @@ class KWZParser:
                 if line_value > 0x3340:
                   line_value = ((line_value) >> 8) | ((line_value & 0x00FF) << 8)
 
-                line_value *= 8
-                pixel_buffer[y + line_index][x : x + 8] = self.linetable[line_value:line_value + 8]
+                # line_value *= 8
+                pixel_buffer[y + line_index][x // 8] = self.linetable[line_value]
                 layer_offset += 1
 
     return self.layer_pixels
@@ -210,7 +210,7 @@ class layerSurface:
     self.surface.set_palette_at(index, color)
 
   def set_pixels(self, pixels):
-    pixels = np.swapaxes(pixels.astype(np.uint8), 0, 1)
+    pixels = np.swapaxes(pixels.view(np.uint8), 0, 1)
     pygame.pixelcopy.array_to_surface(self.surface, pixels)
 
   def get_surface(self, size=(320, 240)):
@@ -284,7 +284,10 @@ with open(argv[1], "rb") as kwz:
     frame.set_layers(parser.decode_frame(frameIndex))
     frame.set_colors(parser.get_frame_palette(frameIndex), palette)
     print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
-    frameIndex += 1
+    if frameIndex == parser.frameCount - 1:
+      frameIndex = 0
+    else:
+      frameIndex += 1
 
     frame.blit_to(screen, (0, 0))
     pygame.display.flip()
