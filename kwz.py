@@ -8,7 +8,7 @@ def ROR(value, bits):
   return ((value >> bits) | (value << (32 - bits))) & 0xFFFFFFFF
 
 class KWZParser:
-  def __init__(self, buffer, table1, table2, table3, table4, linedefs):
+  def __init__(self, buffer, table1, table2, table3, table4, linetable):
     self.buffer = buffer
     # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
     self.buffer.seek(0, 2)
@@ -29,7 +29,8 @@ class KWZParser:
     self.frameCount = self.sections["KMI"]["length"] // 28
     self.buffer.seek(self.sections["KMI"]["offset"] + 8)
     offset = self.sections["KMC"]["offset"] + 12
-
+    # parse each frame meta entry
+    # https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz,-kwc-and-ico-format-documentation#kmi-memo-info-section
     for i in range(self.frameCount):
       meta = struct.unpack("<IHHH10xBBBBI", self.buffer.read(28))
       self.frame_meta.append(meta)
@@ -40,11 +41,11 @@ class KWZParser:
     self.table2 = np.frombuffer(table2, dtype=np.uint32)
     self.table3 = np.frombuffer(table3, dtype=np.uint32)
     self.table4 = np.frombuffer(table4, dtype=np.uint16)
-    self.linedefs = np.frombuffer(linedefs, dtype=np.uint8)
+    self.linetable = np.frombuffer(linetable, dtype=np.uint8)
     # raw layer buffers
     self.layers = np.zeros((3, 1200 * 8), dtype=np.uint16)
     # layer buffers w/ rearranged tiles 
-    self.arranged_layers = np.zeros((3, 240, 320), dtype=np.uint16)
+    self.layer_pixels = np.zeros((3, 240, 320), dtype=np.uint16)
     self.bit_index = 16
     self.bit_value = 0
 
@@ -139,16 +140,20 @@ class KWZParser:
 
         layer_offset += 8
 
+  def get_frame_flag(self, index):
+    flags = self.frame_meta[index][0]
+    return (flags >> 4) & 0xF
+
   def get_frame_palette(self, index):
     flags = self.frame_meta[index][0]
     return [
-      (flags >> 0) & 0xF,
-      (flags >> 8) & 0xF,
-      (flags >> 12) & 0xF,
-      (flags >> 16) & 0xF,
-      (flags >> 20) & 0xF,
-      (flags >> 24) & 0xF,
-      (flags >> 28) & 0xF,
+      flags & 0xF,         # paper color
+      (flags >> 8) & 0xF,  # layer A color 1
+      (flags >> 12) & 0xF, # layer A color 2
+      (flags >> 16) & 0xF, # layer B color 1
+      (flags >> 20) & 0xF, # layer B color 2
+      (flags >> 24) & 0xF, # layer C color 1
+      (flags >> 28) & 0xF, # layer C color 2
     ]
 
   def decode_frame(self, index):
@@ -159,7 +164,7 @@ class KWZParser:
     for layer_index in range(3):
       layer_length = meta[layer_index + 1]
       layer_buffer = self.layers[layer_index]
-      result_buffer = self.arranged_layers[layer_index]
+      pixel_buffer = self.layer_pixels[layer_index]
       # data = self.buffer.read(layer_length)
       # decode layer into layer_buffer
       self.decode_layer(layer_buffer)
@@ -167,33 +172,33 @@ class KWZParser:
       tileIndex = 0
 
       # loop through 128 * 128 large tiles
-      for tileOffsetY in range(0, 240, 128):
-        for tileOffsetX in range(0, 320, 128):
+      for tile_offset_y in range(0, 240, 128):
+        for tile_offset_x in range(0, 320, 128):
           # each large tile is made of 8 * 8 small tiles
-          for subTileOffsetY in range(0, 128, 8):
-            y = tileOffsetY + subTileOffsetY
+          for sub_tile_offset_y in range(0, 128, 8):
+            y = tile_offset_y + sub_tile_offset_y
             # if the tile falls off the bottom of the frame, jump to the next large tile
             if y >= 240: break
 
-            for subTileOffsetX in range(0, 128, 8):
-              x = tileOffsetX + subTileOffsetX
+            for sub_tile_offset_x in range(0, 128, 8):
+              x = tile_offset_x + sub_tile_offset_x
               # if the tile falls off the right of the frame, jump to the next small tile row
               if x >= 320: break
               
               # unpack the 8*8 tile - (x, y) gives the position of the tile's top-left pixel
-              for lineIndex in range(0, 8):
+              for line_index in range(0, 8):
                 # get the line data
                 # each line is defined as an uint16 offset into a table of all possible line values
-                lineValue = layer_buffer[layer_offset]
+                line_value = layer_buffer[layer_offset]
                 # in certain cases we have to flip the endianess because... of course?
-                if lineValue > 0x3340:
-                  lineValue = ((lineValue) >> 8) | ((lineValue & 0x00FF) << 8)
+                if line_value > 0x3340:
+                  line_value = ((line_value) >> 8) | ((line_value & 0x00FF) << 8)
 
-                lineValue *= 8
-                result_buffer[y + lineIndex][x : x + 8] = self.linedefs[lineValue:lineValue + 8]
+                line_value *= 8
+                pixel_buffer[y + line_index][x : x + 8] = self.linetable[line_value:line_value + 8]
                 layer_offset += 1
 
-    return self.arranged_layers
+    return self.layer_pixels
 
 class layerSurface:
   def __init__(self, size=(320, 240)):
@@ -248,9 +253,9 @@ with open(argv[1], "rb") as kwz:
   with open("comptable2.bin", "rb") as f: table2 = f.read()
   with open("comptable3.bin", "rb") as f: table3 = f.read()
   with open("comptable4.bin", "rb") as f: table4 = f.read()
-  with open("linetable.bin", "rb") as f: linedefs = f.read()
+  with open("linetable.bin", "rb") as f: linetable = f.read()
 
-  parser = KWZParser(kwz, table1, table2, table3, table4, linedefs)
+  parser = KWZParser(kwz, table1, table2, table3, table4, linetable)
 
   palette = [
     (0xff, 0xff, 0xff),
@@ -278,6 +283,7 @@ with open(argv[1], "rb") as kwz:
 
     frame.set_layers(parser.decode_frame(frameIndex))
     frame.set_colors(parser.get_frame_palette(frameIndex), palette)
+    print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
     frameIndex += 1
 
     frame.blit_to(screen, (0, 0))
