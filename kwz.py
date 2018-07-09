@@ -248,7 +248,7 @@ with open(argv[1], "rb") as kwz:
   with open("comptable2.bin", "rb") as f: table2 = f.read()
   with open("comptable3.bin", "rb") as f: table3 = f.read()
   with open("comptable4.bin", "rb") as f: table4 = f.read()
-  with open("linedefs.bin", "rb") as f: linedefs = f.read()
+  with open("linetable.bin", "rb") as f: linedefs = f.read()
 
   parser = KWZParser(kwz, table1, table2, table3, table4, linedefs)
 
