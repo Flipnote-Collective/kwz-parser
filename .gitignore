@@ -1,3 +1,4 @@
 
 *.png
 *.kwz
+__pycache__
