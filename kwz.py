@@ -190,10 +190,6 @@ class KWZParser:
                 # get the line data
                 # each line is defined as an uint16 offset into a table of all possible line values
                 line_value = layer_buffer[layer_offset]
-                # in certain cases we have to flip the endianess because... of course?
-                if line_value > 0x3340:
-                  line_value = ((line_value) >> 8) | ((line_value & 0x00FF) << 8)
-
                 # line_value *= 8
                 pixel_buffer[y + line_index][x // 8] = self.linetable[line_value]
                 layer_offset += 1
