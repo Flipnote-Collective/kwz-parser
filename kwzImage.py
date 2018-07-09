@@ -29,13 +29,9 @@ def get_image(parser, index, use_prev_frames=True):
   return img
 
 with open(argv[1], "rb") as kwz:
-  with open("comptable1.bin", "rb") as f: table1 = f.read()
-  with open("comptable2.bin", "rb") as f: table2 = f.read()
-  with open("comptable3.bin", "rb") as f: table3 = f.read()
-  with open("comptable4.bin", "rb") as f: table4 = f.read()
   with open("linetable.bin", "rb") as f: linetable = f.read()
 
-  parser = KWZParser(kwz, table1, table2, table3, table4, linetable)
+  parser = KWZParser(kwz, linetable)
 
   if argv[2] == "gif":
     frames = [get_image(parser, i, use_prev_frames=False) for i in range(parser.frame_count)]
