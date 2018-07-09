@@ -206,8 +206,8 @@ class KWZParser:
 
     return self.layer_pixels.view(np.uint8)
 
-  def get_frame_image(self, index):
-    frame = self.decode_frame(index, use_prev_frames=True)
+  def get_frame_image(self, index, use_prev_frames=True):
+    frame = self.decode_frame(index, use_prev_frames=use_prev_frames)
     image = np.zeros((240, 320), dtype=np.uint8)
     # merge layers into canvas (starting with layer 3, at the back)
     for layer_index in range(2, -1, -1):

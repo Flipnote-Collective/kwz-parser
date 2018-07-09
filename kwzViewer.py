@@ -84,7 +84,6 @@ with open(argv[1], "rb") as kwz:
       if event.type == pygame.QUIT:
         done = True
 
-    parser.is_p_frame(frame_index)
     frame.set_layers(parser.decode_frame(frame_index))
     frame.set_colors(parser.get_frame_palette(frame_index), palette)
     # print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
