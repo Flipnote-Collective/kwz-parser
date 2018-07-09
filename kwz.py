@@ -84,9 +84,12 @@ class KWZParser:
     for layer_index in range(3):
       layer_length = meta[layer_index + 1]
       pixel_buffer = self.layer_pixels[layer_index]
-      # data = self.buffer.read(layer_length)
-      # decode layer into layer_buffer
-      # self.decode_layer(layer_buffer)
+
+      # if the layer is 38 bytes then it hasn't changed since the previous frame, so we can skip it
+      if layer_length == 38:
+        self.buffer.seek(38, 1)
+        continue
+
       self.bit_index = 16
       self.bit_value = 0
       layer_offset = 0
@@ -184,7 +187,7 @@ class KWZParser:
                 if pattern == 1: tile_buffer[0:8] = [a, a, b, a, a, b, a, a]
                 if pattern == 2: tile_buffer[0:8] = [a, b, a, a, b, a, a, b]
                 if pattern == 3: tile_buffer[0:8] = [a, b, b, a, b, b, a, b]
-                  
+
               # copy each line of the tile into the layer's pixel buffer
               for line_index in range(0, 8):
                 pixel_buffer[y + line_index][x // 8] = tile_buffer[line_index]
