@@ -26,12 +26,12 @@ class KWZParser:
     # build frame meta list + frame offset list
     self.frame_meta = []
     self.frame_offsets = []
-    self.frameCount = self.sections["KMI"]["length"] // 28
+    self.frame_count = self.sections["KMI"]["length"] // 28
     self.buffer.seek(self.sections["KMI"]["offset"] + 8)
     offset = self.sections["KMC"]["offset"] + 12
     # parse each frame meta entry
     # https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz,-kwc-and-ico-format-documentation#kmi-memo-info-section
-    for i in range(self.frameCount):
+    for i in range(self.frame_count):
       meta = struct.unpack("<IHHH10xBBBBI", self.buffer.read(28))
       self.frame_meta.append(meta)
       self.frame_offsets.append(offset)
@@ -47,7 +47,6 @@ class KWZParser:
     self.bit_index = 16
     self.bit_value = 0
 
-
   def read_bits(self, num):
     if self.bit_index + num > 16:
       next_bits = int.from_bytes(self.buffer.read(2), byteorder="little")
@@ -60,9 +59,15 @@ class KWZParser:
     self.bit_index += num
     return result
 
-  def get_frame_flag(self, index):
+  # check if each layer in a given frame are based on the previous frame
+  def is_p_frame(self, index):
     flags = self.frame_meta[index][0]
-    return (flags >> 4) & 0xF
+    uses_compression = (flags >> 7) & 0x1
+    is_p_frame = (flags >> 4) & 0x07 < 7
+    layer_c = (flags >> 6) & 0x1
+    layer_b = (flags >> 5) & 0x1
+    layer_a = (flags >> 4) & 0x1
+    return [is_p_frame, layer_a == 0, layer_b == 0, layer_c == 0]
 
   def get_frame_palette(self, index):
     flags = self.frame_meta[index][0]
@@ -78,18 +83,19 @@ class KWZParser:
 
   def decode_frame(self, index):
     meta = self.frame_meta[index]
-    self.buffer.seek(self.frame_offsets[index])
+    offset = self.frame_offsets[index]
 
     # loop through layers
     for layer_index in range(3):
       layer_length = meta[layer_index + 1]
-      pixel_buffer = self.layer_pixels[layer_index]
-
+      self.buffer.seek(offset)
+      offset += layer_length
+      
       # if the layer is 38 bytes then it hasn't changed since the previous frame, so we can skip it
       if layer_length == 38:
-        self.buffer.seek(38, 1)
         continue
 
+      pixel_buffer = self.layer_pixels[layer_index]
       self.bit_index = 16
       self.bit_value = 0
       layer_offset = 0
@@ -121,11 +127,11 @@ class KWZParser:
 
               if type == 0:
                 line_value = self.table4[self.read_bits(5)]
-                tile_buffer[0:8] = self.linetable[line_value]
+                tile_buffer[0:8] = [self.linetable[line_value]] * 8
 
               elif type == 1:
                 line_value = self.read_bits(13)
-                tile_buffer[0:8] = self.linetable[line_value]
+                tile_buffer[0:8] = [self.linetable[line_value]] * 8
 
               elif type == 2:
                 index1 = self.read_bits(5)
@@ -268,20 +274,21 @@ with open(argv[1], "rb") as kwz:
   pygame.display.set_caption("crappy proof-of-concept kwz player™")
 
   done = False
-  frameIndex = 0
+  frame_index = 0
 
   while not done:
     for event in pygame.event.get():
       if event.type == pygame.QUIT:
         done = True
 
-    frame.set_layers(parser.decode_frame(frameIndex))
-    frame.set_colors(parser.get_frame_palette(frameIndex), palette)
+    parser.is_p_frame(frame_index)
+    frame.set_layers(parser.decode_frame(frame_index))
+    frame.set_colors(parser.get_frame_palette(frame_index), palette)
     # print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
-    if frameIndex == parser.frameCount - 1:
-      frameIndex = 0
+    if frame_index == parser.frame_count - 1:
+      frame_index = 0
     else:
-      frameIndex += 1
+      frame_index += 1
 
     frame.blit_to(screen, (0, 0))
     pygame.display.flip()
