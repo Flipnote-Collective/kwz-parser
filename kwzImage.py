@@ -24,16 +24,10 @@ with open(argv[1], "rb") as kwz:
 
   frame_index = int(argv[2])
 
+  image = parser.get_frame_image(frame_index)
   colors = parser.get_frame_palette(frame_index)
-  frame = parser.decode_frame(frame_index)
 
-  canvas = np.zeros((240, 320), dtype=np.uint8)
-  # merge layers into canvas (starting with layer 3, at the back)
-  for layer_index in range(2, -1, -1):
-    mask = frame[layer_index] != 0
-    canvas[mask] = frame[layer_index][mask] + (layer_index * 2)
-
-  img = Image.fromarray(canvas, "P")
+  img = Image.fromarray(image, "P")
   img.putpalette([
     *palette[colors[0]], 
     *palette[colors[1]], 

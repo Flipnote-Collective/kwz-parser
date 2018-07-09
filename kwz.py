@@ -56,15 +56,10 @@ class KWZParser:
     self.bit_index += num
     return result
 
-  # check if each layer in a given frame are based on the previous frame
-  def is_p_frame(self, index):
+  # check if a frame can be decoded without having to decode previous frames
+  def is_frame_new(self, index):
     flags = self.frame_meta[index][0]
-    uses_compression = (flags >> 7) & 0x1
-    is_p_frame = (flags >> 4) & 0x07 < 7
-    layer_c = (flags >> 6) & 0x1
-    layer_b = (flags >> 5) & 0x1
-    layer_a = (flags >> 4) & 0x1
-    return [is_p_frame, layer_a == 0, layer_b == 0, layer_c == 0]
+    return (flags >> 4) & 0x07 == 7
 
   def get_frame_palette(self, index):
     flags = self.frame_meta[index][0]
@@ -78,7 +73,21 @@ class KWZParser:
       (flags >> 28) & 0xF, # layer C color 2
     ]
 
-  def decode_frame(self, index):
+  def decode_prev_frames(self, index):
+    back_index = 0
+    is_new = 0
+    while not is_new:
+      back_index += 1
+      is_new = self.is_frame_new(index - back_index)
+    back_index = index - back_index;
+    while back_index < index:
+      self.decode_frame(back_index)
+      back_index += 1
+
+  def decode_frame(self, index, use_prev_frames=False):
+    if use_prev_frames and not self.is_frame_new(index):
+      self.decode_prev_frames(index)
+
     meta = self.frame_meta[index]
     offset = self.frame_offsets[index]
 
@@ -196,6 +205,16 @@ class KWZParser:
                 pixel_buffer[y + line_index][x // 8] = tile_buffer[line_index]
 
     return self.layer_pixels.view(np.uint8)
+
+  def get_frame_image(self, index):
+    frame = self.decode_frame(index, use_prev_frames=True)
+    image = np.zeros((240, 320), dtype=np.uint8)
+    # merge layers into canvas (starting with layer 3, at the back)
+    for layer_index in range(2, -1, -1):
+      mask = frame[layer_index] != 0
+      image[mask] = frame[layer_index][mask] + (layer_index * 2)
+    
+    return image
 
 if __name__ == "__main__":
   print("Please use kwzViewer.py to view Flipnotes now :)")
