@@ -34,8 +34,9 @@ with open(argv[1], "rb") as kwz:
   parser = KWZParser(kwz, linetable)
 
   if argv[2] == "gif":
+    frame_duration = (1 / parser.framerate) * 1000
     frames = [get_image(parser, i, use_prev_frames=False) for i in range(parser.frame_count)]
-    frames[0].save(argv[3], format="gif", save_all=True, append_images=frames[1:], duration=200, loop=False)
+    frames[0].save(argv[3], format="gif", save_all=True, append_images=frames[1:], duration=frame_duration, loop=False)
 
   else:
     index = int(argv[2])

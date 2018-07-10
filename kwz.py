@@ -1,6 +1,20 @@
 import struct
 import numpy as np
 
+FRAMERATES = [
+  0.2,
+  0.5,
+  1,
+  2,
+  4, 
+  6,
+  8,
+  12, 
+  20,
+  24,
+  30
+]
+
 def ROR(value, bits):
   return ((value >> bits) | (value << (32 - bits))) & 0xFFFFFFFF
 
@@ -20,10 +34,13 @@ class KWZParser:
       self.sections[str(magic, 'utf-8')] = {"offset": offset, "length": length}
       offset += length + 8
 
+    self.buffer.seek(204)
+    self.frame_count, self.thumb_index, self.frame_speed = struct.unpack("<HH2xB", self.buffer.read(7))
+    self.framerate = FRAMERATES[self.frame_speed]
+
     # build frame meta list + frame offset list
     self.frame_meta = []
     self.frame_offsets = []
-    self.frame_count = self.sections["KMI"]["length"] // 28
     self.buffer.seek(self.sections["KMI"]["offset"] + 8)
     offset = self.sections["KMC"]["offset"] + 12
     # parse each frame meta entry
@@ -43,6 +60,7 @@ class KWZParser:
     self.table1[31] = 0x05
     self.table1[240] = 0x06
     self.table1[241] = 0x07
+
     self.table2 = np.zeros((6561), dtype=np.uint32)
     values = [0, 1, 0xF, 0x10, 0x11, 0x1F, 0xF0, 0xF1, 0xFF]
     index = 0
@@ -53,6 +71,7 @@ class KWZParser:
             value = (values[a] << 24) | (values[b] << 16) | (values[c] << 8) | values[d]
             self.table2[index] = value
             index += 1
+
     self.table3 = np.array([
       0x00000000, 0x11111111, 0xFFFFFFFF, 0x00000001, 
       0x00000010, 0x00000100, 0x00001000, 0x00010000, 
@@ -63,6 +82,7 @@ class KWZParser:
       0x01100000, 0x11000000, 0x01010101, 0x10101010, 
       0x0F0F0F0F, 0xF0F0F0F0, 0x1F1F1F1F, 0xF1F1F1F1
     ], dtype=np.uint32)
+    
     self.table4 = np.array([
       0x0000, 0x0CD0, 0x19A0, 0x02D9, 0x088B, 0x0051, 0x00F3, 0x0009,
       0x001B, 0x0001, 0x0003, 0x05B2, 0x1116, 0x00A2, 0x01E6, 0x0012,
