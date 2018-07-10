@@ -345,6 +345,7 @@ void deswizzle_layer(char *layer_data, uint8_t *result_buffer)
 
 						case 5:
 							skip = read_bits(&b, 5);
+							continue;
 						break;
 
 						case 7:
