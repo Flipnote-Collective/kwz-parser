@@ -1,0 +1,1 @@
+x86_64-w64-mingw32-gcc main.c -I /mingw64/include/ -lmingw32 -lSDL2main -lSDL2 -L/mingw64/lib/
