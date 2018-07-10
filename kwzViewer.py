@@ -1,5 +1,5 @@
 from sys import argv
-from kwz import KWZParser
+from kwz import KWZParser, PALETTE
 import numpy as np
 import pygame
 
@@ -35,14 +35,14 @@ class frameSurface:
     self.layer2.set_pixels(layers[1])
     self.layer3.set_pixels(layers[2])
     
-  def set_colors(self, colors, palette):
-    self.paper.set_palette_at(0, palette[colors[0]])
-    self.layer1.set_palette_at(1, palette[colors[1]])
-    self.layer1.set_palette_at(2, palette[colors[2]])
-    self.layer2.set_palette_at(1, palette[colors[3]])
-    self.layer2.set_palette_at(2, palette[colors[4]])
-    self.layer3.set_palette_at(1, palette[colors[5]])
-    self.layer3.set_palette_at(2, palette[colors[6]])
+  def set_colors(self, colors):
+    self.paper.set_palette_at(0, PALETTE[colors[0]])
+    self.layer1.set_palette_at(1, PALETTE[colors[1]])
+    self.layer1.set_palette_at(2, PALETTE[colors[2]])
+    self.layer2.set_palette_at(1, PALETTE[colors[3]])
+    self.layer2.set_palette_at(2, PALETTE[colors[4]])
+    self.layer3.set_palette_at(1, PALETTE[colors[5]])
+    self.layer3.set_palette_at(2, PALETTE[colors[6]])
 
   def blit_to(self, surface, pos):
     surface.blit(self.paper, pos)
@@ -55,16 +55,6 @@ with open(argv[1], "rb") as kwz:
   with open("linetable.bin", "rb") as f: linetable = f.read()
 
   parser = KWZParser(kwz, linetable)
-
-  palette = [
-    (0xff, 0xff, 0xff),
-    (0x14, 0x14, 0x14),
-    (0xff, 0x45, 0x45),
-    (0xff, 0xe6, 0x00),
-    (0x00, 0x82, 0x32),
-    (0x06, 0xAE, 0xff),
-    (0xff, 0xff, 0xff),
-  ]
 
   screen = pygame.display.set_mode((320*2, 240*2))
   frame = frameSurface((320*2, 240*2))
@@ -81,7 +71,7 @@ with open(argv[1], "rb") as kwz:
         done = True
 
     frame.set_layers(parser.decode_frame(frame_index))
-    frame.set_colors(parser.get_frame_palette(frame_index), palette)
+    frame.set_colors(parser.get_frame_palette(frame_index))
     # print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
     if frame_index == parser.frame_count - 1:
       frame_index = 0

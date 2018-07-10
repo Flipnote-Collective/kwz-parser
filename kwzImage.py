@@ -1,17 +1,7 @@
 from sys import argv
-from kwz import KWZParser
+from kwz import KWZParser, PALETTE
 from PIL import Image
 import numpy as np
-
-PALETTE = [
-  (0xff, 0xff, 0xff),
-  (0x14, 0x14, 0x14),
-  (0xff, 0x45, 0x45),
-  (0xff, 0xe6, 0x00),
-  (0x00, 0x82, 0x32),
-  (0x06, 0xAE, 0xff),
-  (0xff, 0xff, 0xff),
-]
 
 def get_image(parser, index, use_prev_frames=True):
   frame = parser.get_frame_image(index, use_prev_frames=use_prev_frames)

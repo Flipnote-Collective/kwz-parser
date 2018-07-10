@@ -15,6 +15,16 @@ FRAMERATES = [
   30
 ]
 
+PALETTE = [
+  (0xff, 0xff, 0xff),
+  (0x10, 0x10, 0x10),
+  (0xff, 0x10, 0x10),
+  (0xff, 0xe7, 0x00),
+  (0x00, 0x86, 0x31),
+  (0x00, 0x38, 0xce),
+  (0xff, 0xff, 0xff),
+]
+
 def ROR(value, bits):
   return ((value >> bits) | (value << (32 - bits))) & 0xFFFFFFFF
 
@@ -109,12 +119,12 @@ class KWZParser:
     return result
 
   # check if a frame can be decoded without having to decode previous frames
-  def is_frame_new(self, index):
-    flags = self.frame_meta[index][0]
+  def is_frame_new(self, frame_index):
+    flags = self.frame_meta[frame_index][0]
     return (flags >> 4) & 0x07 == 7
 
-  def get_frame_palette(self, index):
-    flags = self.frame_meta[index][0]
+  def get_frame_palette(self, frame_index):
+    flags = self.frame_meta[frame_index][0]
     return [
       flags & 0xF,         # paper color
       (flags >> 8) & 0xF,  # layer A color 1
@@ -125,23 +135,23 @@ class KWZParser:
       (flags >> 28) & 0xF, # layer C color 2
     ]
 
-  def decode_prev_frames(self, index):
+  def decode_prev_frames(self, frame_index):
     back_index = 0
     is_new = 0
     while not is_new:
       back_index += 1
-      is_new = self.is_frame_new(index - back_index)
-    back_index = index - back_index;
+      is_new = self.is_frame_new(frame_index - back_index)
+    back_index = frame_index - back_index;
     while back_index < index:
       self.decode_frame(back_index)
       back_index += 1
 
-  def decode_frame(self, index, use_prev_frames=False):
-    if use_prev_frames and not self.is_frame_new(index):
-      self.decode_prev_frames(index)
+  def decode_frame(self, frame_index, use_prev_frames=False):
+    if use_prev_frames and not self.is_frame_new(frame_index):
+      self.decode_prev_frames(frame_index)
 
-    meta = self.frame_meta[index]
-    offset = self.frame_offsets[index]
+    meta = self.frame_meta[frame_index]
+    offset = self.frame_offsets[frame_index]
 
     # loop through layers
     for layer_index in range(3):
