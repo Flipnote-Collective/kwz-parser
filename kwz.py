@@ -78,7 +78,7 @@ class KWZParser:
       for b in range(9):
         for c in range(9):
           for d in range(9):
-            value = (values[a] << 24) | (values[b] << 16) | (values[c] << 8) | values[d]
+            value = (values[d] << 24) | (values[c] << 16) | (values[d] << 8) | values[a]
             self.table2[index] = value
             index += 1
 
