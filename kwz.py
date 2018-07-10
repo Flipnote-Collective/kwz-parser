@@ -25,9 +25,6 @@ PALETTE = [
   (0xff, 0xff, 0xff),
 ]
 
-def ROR(value, bits):
-  return ((value >> bits) | (value << (32 - bits))) & 0xFFFFFFFF
-
 class KWZParser:
   def __init__(self, buffer, linetable):
     self.buffer = buffer
@@ -61,25 +58,17 @@ class KWZParser:
       self.frame_offsets.append(offset)
       offset += meta[1] + meta[2] + meta[3]
 
-    self.table1 = np.full((256), 0x8, dtype=np.uint8)
-    self.table1[0] = 0x00
-    self.table1[1] = 0x01
-    self.table1[15] = 0x02
-    self.table1[16] = 0x03
-    self.table1[17] = 0x04
-    self.table1[31] = 0x05
-    self.table1[240] = 0x06
-    self.table1[241] = 0x07
+    # table 1 no longer needed
 
-    self.table2 = np.zeros((6561), dtype=np.uint32)
-    values = [0, 1, 0xF, 0x10, 0x11, 0x1F, 0xF0, 0xF1, 0xFF]
+    # table 2 lines are linedef table but rotated 4 bits to the right
+    self.table2 = np.zeros((6561), dtype=np.uint16)
+    values = [0, 3, 7, 1, 4, 8, 2, 5, 6]
     index = 0
     for a in range(9):
       for b in range(9):
         for c in range(9):
           for d in range(9):
-            value = (values[d] << 24) | (values[c] << 16) | (values[d] << 8) | values[a]
-            self.table2[index] = value
+            self.table2[index] = ((values[a] * 9 + values[b]) * 9 + values[c]) * 9 + values[d]
             index += 1
 
     # table 3 lines are table 4 but rotated 4 bits to the right
@@ -208,12 +197,7 @@ class KWZParser:
               
               elif type == 3:
                 a_value = self.read_bits(13)
-                index = ROR(self.table2[a_value], 4)
-                v1 = self.table1[index & 0xFF]
-                v2 = self.table1[(index >> 8) & 0xFF]
-                v3 = self.table1[(index >> 16) & 0xFF]
-                v4 = self.table1[index >> 24]
-                b_value = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
+                b_value = self.table2[a_value]
                 a = self.linetable[a_value]
                 b = self.linetable[b_value]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
