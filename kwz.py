@@ -206,7 +206,7 @@ class KWZParser:
               
               elif type == 3:
                 a_value = self.read_bits(13)
-                index = ROR(self.table2[x], 4)
+                index = ROR(self.table2[a_value], 4)
                 v1 = self.table1[index & 0xFF]
                 v2 = self.table1[(index >> 8) & 0xFF]
                 v3 = self.table1[(index >> 16) & 0xFF]
@@ -259,12 +259,20 @@ class KWZParser:
     return self.layer_pixels.view(np.uint8)
 
   def get_frame_image(self, index, use_prev_frames=True):
-    frame = self.decode_frame(index, use_prev_frames=use_prev_frames)
+    layers = self.decode_frame(index, use_prev_frames=use_prev_frames)
     image = np.zeros((240, 320), dtype=np.uint8)
-    # merge layers into canvas (starting with layer 3, at the back)
-    for layer_index in range(2, -1, -1):
-      mask = frame[layer_index] != 0
-      image[mask] = frame[layer_index][mask] + (layer_index * 2)
+
+    for y in range(240):
+      for x in range(320):
+        a = layers[0][y][x]
+        b = layers[1][y][x]
+        c = layers[2][y][x]
+        if (c):
+          image[y][x] = c + 4
+        if (b):
+          image[y][x] = b + 2
+        if (a):
+          image[y][x] = a
     
     return image
 
