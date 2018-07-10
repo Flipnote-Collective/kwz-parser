@@ -82,16 +82,13 @@ class KWZParser:
             self.table2[index] = value
             index += 1
 
+    # table 3 lines are table 4 but rotated 4 bits to the right
     self.table3 = np.array([
-      0x00000000, 0x11111111, 0xFFFFFFFF, 0x00000001, 
-      0x00000010, 0x00000100, 0x00001000, 0x00010000, 
-      0x00100000, 0x01000000, 0x10000000, 0x0000000F, 
-      0x000000F0, 0x00000F00, 0x0000F000, 0x000F0000, 
-      0x00F00000, 0x0F000000, 0xF0000000, 0x00000011, 
-      0x00000110, 0x00001100, 0x00011000, 0x00110000,
-      0x01100000, 0x11000000, 0x01010101, 0x10101010, 
-      0x0F0F0F0F, 0xF0F0F0F0, 0x1F1F1F1F, 0xF1F1F1F1
-    ], dtype=np.uint32)
+      0x0000, 0x0CD0, 0x19A0, 0x0003, 0x02D9, 0x088B, 0x0051, 0x00F3, 
+      0x0009, 0x001B, 0x0001, 0x0006, 0x05B2, 0x1116, 0x00A2, 0x01E6, 
+      0x0012, 0x0036, 0x0002, 0x02DC, 0x0B64, 0x08DC, 0x0144, 0x00FC, 
+      0x0024, 0x001C, 0x099C, 0x0334, 0x1338, 0x0668, 0x166C, 0x1004
+    ], dtype=np.uint16)
     
     self.table4 = np.array([
       0x0000, 0x0CD0, 0x19A0, 0x02D9, 0x088B, 0x0051, 0x00F3, 0x0009,
@@ -142,7 +139,7 @@ class KWZParser:
       back_index += 1
       is_new = self.is_frame_new(frame_index - back_index)
     back_index = frame_index - back_index;
-    while back_index < index:
+    while back_index < frame_index:
       self.decode_frame(back_index)
       back_index += 1
 
@@ -203,13 +200,8 @@ class KWZParser:
 
               elif type == 2:
                 index1 = self.read_bits(5)
-                index2 = ROR(self.table3[index1], 4)
-                v1 = self.table1[index2 & 0xFF]
-                v2 = self.table1[(index2 >> 8) & 0xFF]
-                v3 = self.table1[(index2 >> 16) & 0xFF]
-                v4 = self.table1[index2 >> 24]
                 a_value = self.table4[index1]
-                b_value = ((v1 * 9 + v2) * 9 + v3) * 9 + v4
+                b_value = self.table3[index1]
                 a = self.linetable[a_value]
                 b = self.linetable[b_value]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
