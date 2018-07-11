@@ -26,7 +26,7 @@ PALETTE = [
 ]
 
 class KWZParser:
-  def __init__(self, buffer, linetable):
+  def __init__(self, buffer):
     self.buffer = buffer
     # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
     self.buffer.seek(0, 2)
@@ -86,7 +86,20 @@ class KWZParser:
       0x001C, 0x0004, 0x0334, 0x099C, 0x0668, 0x1338, 0x1004, 0x166C
     ], dtype=np.uint16)
 
-    self.linetable = np.frombuffer(linetable, dtype="V8")
+    # linetable contains every possible sequence of pixels for each tile line
+    self.linetable = np.zeros((6561), dtype="V8")
+    index = 0
+    for a in range(3):
+      for b in range(3):
+        for c in range(3):
+          for d in range(3):
+            for e in range(3):
+              for f in range(3):
+                for g in range(3):
+                  for h in range(3):
+                    self.linetable[index] = bytes([b, a, d, c, f, e, h, g])
+                    index += 1
+
     # layer buffers w/ rearranged tiles 
     self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
     self.bit_index = 16

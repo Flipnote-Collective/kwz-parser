@@ -19,9 +19,7 @@ def get_image(parser, index):
   return img
 
 with open(argv[1], "rb") as kwz:
-  with open("linetable.bin", "rb") as f: linetable = f.read()
-
-  parser = KWZParser(kwz, linetable)
+  parser = KWZParser(kwz)
 
   if argv[2] == "gif":
     frame_duration = (1 / parser.framerate) * 1000
