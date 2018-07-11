@@ -52,10 +52,7 @@ class frameSurface:
 
 
 with open(argv[1], "rb") as kwz:
-  with open("linetable.bin", "rb") as f: linetable = f.read()
-
-  parser = KWZParser(kwz, linetable)
-
+  parser = KWZParser(kwz)
   screen = pygame.display.set_mode((320*2, 240*2))
   frame = frameSurface((320*2, 240*2))
 
