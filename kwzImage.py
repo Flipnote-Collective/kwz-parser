@@ -3,8 +3,8 @@ from kwz import KWZParser, PALETTE
 from PIL import Image
 import numpy as np
 
-def get_image(parser, index, use_prev_frames=True):
-  frame = parser.get_frame_image(index, use_prev_frames=use_prev_frames)
+def get_image(parser, index):
+  frame = parser.get_frame_image(index)
   colors = parser.get_frame_palette(index)
   img = Image.fromarray(frame, "P")
   img.putpalette([
@@ -25,7 +25,7 @@ with open(argv[1], "rb") as kwz:
 
   if argv[2] == "gif":
     frame_duration = (1 / parser.framerate) * 1000
-    frames = [get_image(parser, i, use_prev_frames=False) for i in range(parser.frame_count)]
+    frames = [get_image(parser, i) for i in range(parser.frame_count)]
     frames[0].save(argv[3], format="gif", save_all=True, append_images=frames[1:], duration=frame_duration, loop=False)
 
   else:
