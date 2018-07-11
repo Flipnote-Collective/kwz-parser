@@ -91,6 +91,7 @@ class KWZParser:
     self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
     self.bit_index = 16
     self.bit_value = 0
+    self.prev_decoded_frame = -1
 
   def read_bits(self, num):
     if self.bit_index + num > 16:
@@ -132,8 +133,8 @@ class KWZParser:
       self.decode_frame(back_index)
       back_index += 1
 
-  def decode_frame(self, frame_index, use_prev_frames=False):
-    if use_prev_frames and not self.is_frame_new(frame_index):
+  def decode_frame(self, frame_index):
+    if not self.prev_decoded_frame == frame_index - 1 and not self.is_frame_new(frame_index):
       self.decode_prev_frames(frame_index)
 
     meta = self.frame_meta[frame_index]
@@ -176,7 +177,6 @@ class KWZParser:
                 skip -= 1
                 continue
 
-              # decode tile
               type = self.read_bits(3)
 
               if type == 0:
@@ -188,18 +188,15 @@ class KWZParser:
                 tile_buffer[0:8] = [self.linetable[line_value]] * 8
 
               elif type == 2:
-                index1 = self.read_bits(5)
-                a_value = self.table4[index1]
-                b_value = self.table3[index1]
-                a = self.linetable[a_value]
-                b = self.linetable[b_value]
+                line_value = self.read_bits(5)
+                a = self.linetable[self.table4[line_value]]
+                b = self.linetable[self.table3[line_value]]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
               
               elif type == 3:
-                a_value = self.read_bits(13)
-                b_value = self.table2[a_value]
-                a = self.linetable[a_value]
-                b = self.linetable[b_value]
+                line_value = self.read_bits(13)
+                a = self.linetable[line_value]
+                b = self.linetable[self.table2[line_value]]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
 
               elif type == 4:
@@ -242,10 +239,11 @@ class KWZParser:
               for line_index in range(0, 8):
                 pixel_buffer[y + line_index][x // 8] = tile_buffer[line_index]
 
+    self.prev_decoded_frame = frame_index
     return self.layer_pixels.view(np.uint8)
 
-  def get_frame_image(self, index, use_prev_frames=True):
-    layers = self.decode_frame(index, use_prev_frames=use_prev_frames)
+  def get_frame_image(self, index):
+    layers = self.decode_frame(index)
     image = np.zeros((240, 320), dtype=np.uint8)
 
     for y in range(240):
