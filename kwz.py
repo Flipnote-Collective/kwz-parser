@@ -64,35 +64,34 @@ class KWZParser:
       self.frame_offsets.append(offset)
       offset += meta[1] + meta[2] + meta[3]
 
-    # table 1 no longer needed
-
-    # table 2 lines are linedef table but rotated 4 bits to the right
-    self.table2 = np.zeros((6561), dtype=np.uint16)
-    values = [0, 3, 7, 1, 4, 8, 2, 5, 6]
-    index = 0
-    for a in range(9):
-      for b in range(9):
-        for c in range(9):
-          for d in range(9):
-            self.table2[index] = ((values[a] * 9 + values[b]) * 9 + values[c]) * 9 + values[d]
-            index += 1
-
-    # table 3 lines are table 4 but rotated 4 bits to the right
-    self.table3 = np.array([
-      0x0000, 0x0CD0, 0x19A0, 0x0003, 0x02D9, 0x088B, 0x0051, 0x00F3, 
-      0x0009, 0x001B, 0x0001, 0x0006, 0x05B2, 0x1116, 0x00A2, 0x01E6, 
-      0x0012, 0x0036, 0x0002, 0x02DC, 0x0B64, 0x08DC, 0x0144, 0x00FC, 
-      0x0024, 0x001C, 0x099C, 0x0334, 0x1338, 0x0668, 0x166C, 0x1004
-    ], dtype=np.uint16)
-    
-    self.table4 = np.array([
+    # table1 - commonly occuring line offsets
+    self.table1 = np.array([
       0x0000, 0x0CD0, 0x19A0, 0x02D9, 0x088B, 0x0051, 0x00F3, 0x0009,
       0x001B, 0x0001, 0x0003, 0x05B2, 0x1116, 0x00A2, 0x01E6, 0x0012,
       0x0036, 0x0002, 0x0006, 0x0B64, 0x08DC, 0x0144, 0x00FC, 0x0024,
       0x001C, 0x0004, 0x0334, 0x099C, 0x0668, 0x1338, 0x1004, 0x166C
     ], dtype=np.uint16)
 
-    # linetable contains every possible sequence of pixels for each tile line
+    # table2 - commonly occuring line offsets, but the lines are shifted to the left by one pixel
+    self.table2 = np.array([
+      0x0000, 0x0CD0, 0x19A0, 0x0003, 0x02D9, 0x088B, 0x0051, 0x00F3, 
+      0x0009, 0x001B, 0x0001, 0x0006, 0x05B2, 0x1116, 0x00A2, 0x01E6, 
+      0x0012, 0x0036, 0x0002, 0x02DC, 0x0B64, 0x08DC, 0x0144, 0x00FC, 
+      0x0024, 0x001C, 0x099C, 0x0334, 0x1338, 0x0668, 0x166C, 0x1004
+    ], dtype=np.uint16)
+
+    # table3 - line offsets, but the lines are shifted to the left by one pixel
+    self.table3 = np.zeros((6561), dtype=np.uint16)
+    values = [0, 3, 7, 1, 4, 8, 2, 5, 6]
+    index = 0
+    for a in range(9):
+      for b in range(9):
+        for c in range(9):
+          for d in range(9):
+            self.table3[index] = ((values[a] * 9 + values[b]) * 9 + values[c]) * 9 + values[d]
+            index += 1
+
+    # linetable - contains every possible sequence of pixels for each tile line
     self.linetable = np.zeros((6561), dtype="V8")
     index = 0
     for a in range(3):
@@ -199,7 +198,7 @@ class KWZParser:
               type = self.read_bits(3)
 
               if type == 0:
-                line_value = self.table4[self.read_bits(5)]
+                line_value = self.table1[self.read_bits(5)]
                 tile_buffer[0:8] = [self.linetable[line_value]] * 8
 
               elif type == 1:
@@ -208,21 +207,21 @@ class KWZParser:
 
               elif type == 2:
                 line_value = self.read_bits(5)
-                a = self.linetable[self.table4[line_value]]
-                b = self.linetable[self.table3[line_value]]
+                a = self.linetable[self.table1[line_value]]
+                b = self.linetable[self.table2[line_value]]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
               
               elif type == 3:
                 line_value = self.read_bits(13)
                 a = self.linetable[line_value]
-                b = self.linetable[self.table2[line_value]]
+                b = self.linetable[self.table3[line_value]]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
 
               elif type == 4:
                 mask = self.read_bits(8)
                 for i in range(8):
                   if mask & (1 << i):
-                    line_value = self.table4[self.read_bits(5)]
+                    line_value = self.table1[self.read_bits(5)]
                   else:
                     line_value = self.read_bits(13)
                   tile_buffer[i] = self.linetable[line_value]
@@ -239,8 +238,8 @@ class KWZParser:
                 use_table = self.read_bits(1)
                 
                 if use_table:
-                  a_value = self.table4[self.read_bits(5)]
-                  b_value = self.table4[self.read_bits(5)]
+                  a_value = self.table1[self.read_bits(5)]
+                  b_value = self.table1[self.read_bits(5)]
                   pattern = (pattern + 1) % 4
                 else:
                   a_value = self.read_bits(13)
@@ -291,6 +290,3 @@ class KWZParser:
       # seek to track, ignoring the CRC32 at the start
       self.buffer.seek(offset + 4)
       return self.buffer.read(size)
-
-if __name__ == "__main__":
-  print("Please use kwzViewer.py to view Flipnotes now :)")
