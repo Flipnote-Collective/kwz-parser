@@ -263,7 +263,6 @@ class KWZParser:
   def get_frame_image(self, index):
     layers = self.decode_frame(index)
     image = np.zeros((240, 320), dtype=np.uint8)
-
     for y in range(240):
       for x in range(320):
         a = layers[0][y][x]
@@ -275,18 +274,18 @@ class KWZParser:
           image[y][x] = b + 2
         if (a):
           image[y][x] = a
-    
     return image
+
+  def has_audio_track(self, track_index):
+    return self.track_lengths[track_index] > 0
 
   def get_audio_track(self, track_index):
     size = self.track_lengths[track_index]
-    if size == 0:
-      return None
-    else:
-      # offset starts after sound header
-      offset = self.sections["KSN"]["offset"] + 32
-      for i in range(track_index):
-        offset += self.track_lengths[track_index]
-      # seek to track, ignoring the CRC32 at the start
-      self.buffer.seek(offset + 4)
-      return self.buffer.read(size)
+    # offset starts after sound header
+    offset = self.sections["KSN"]["offset"] + 36
+    for i in range(track_index):
+      offset += self.track_lengths[i]
+    self.buffer.seek(offset)
+    # swap nibbles
+    data = bytes(((byte << 4) & 0xF0) | (byte >> 4) for byte in self.buffer.read(size))
+    return data
