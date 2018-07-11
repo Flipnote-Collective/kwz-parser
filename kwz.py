@@ -41,9 +41,15 @@ class KWZParser:
       self.sections[str(magic, 'utf-8')] = {"offset": offset, "length": length}
       offset += length + 8
 
+    # read part of the file header to get frame count, frame speed, etc
     self.buffer.seek(204)
     self.frame_count, self.thumb_index, self.frame_speed = struct.unpack("<HH2xB", self.buffer.read(7))
     self.framerate = FRAMERATES[self.frame_speed]
+
+    # read sound data header
+    self.buffer.seek(self.sections["KSN"]["offset"] + 8)
+    self.track_frame_speed = struct.unpack("<I", self.buffer.read(4))
+    self.track_lengths = struct.unpack("<IIIII", self.buffer.read(20))
 
     # build frame meta list + frame offset list
     self.frame_meta = []
@@ -272,6 +278,19 @@ class KWZParser:
           image[y][x] = a
     
     return image
+
+  def get_audio_track(self, track_index):
+    size = self.track_lengths[track_index]
+    if size == 0:
+      return None
+    else:
+      # offset starts after sound header
+      offset = self.sections["KSN"]["offset"] + 32
+      for i in range(track_index):
+        offset += self.track_lengths[track_index]
+      # seek to track, ignoring the CRC32 at the start
+      self.buffer.seek(offset + 4)
+      return self.buffer.read(size)
 
 if __name__ == "__main__":
   print("Please use kwzViewer.py to view Flipnotes now :)")
