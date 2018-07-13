@@ -43,8 +43,13 @@ class KWZParser:
 
     # read part of the file header to get frame count, frame speed, etc
     self.buffer.seek(204)
-    self.frame_count, self.thumb_index, self.frame_speed = struct.unpack("<HH2xB", self.buffer.read(7))
+    self.frame_count, self.thumb_index, self.frame_speed, layer_flags = struct.unpack("<HH2xBB", self.buffer.read(8))
     self.framerate = FRAMERATES[self.frame_speed]
+    self.layer_visibility = [
+      (layer_flags) & 0x1 == 0,      # Layer A
+      (layer_flags >> 1) & 0x1 == 0, # Layer B
+      (layer_flags >> 2) & 0x1 == 0, # Layer C
+    ]
 
     # read sound data header
     self.buffer.seek(self.sections["KSN"]["offset"] + 8)
@@ -123,37 +128,13 @@ class KWZParser:
     self.bit_index += num
     return result
 
-  # check if a frame can be decoded without having to decode previous frames
-  def is_frame_new(self, frame_index):
-    flags = self.frame_meta[frame_index][0]
-    return (flags >> 4) & 0x07 == 7
+  def get_diffing_flag(self, frame_index):
+    return ~(self.frame_meta[frame_index][0] >> 4) & 0x07
 
-  def get_frame_palette(self, frame_index):
-    flags = self.frame_meta[frame_index][0]
-    return [
-      flags & 0xF,         # paper color
-      (flags >> 8) & 0xF,  # layer A color 1
-      (flags >> 12) & 0xF, # layer A color 2
-      (flags >> 16) & 0xF, # layer B color 1
-      (flags >> 20) & 0xF, # layer B color 2
-      (flags >> 24) & 0xF, # layer C color 1
-      (flags >> 28) & 0xF, # layer C color 2
-    ]
-
-  def decode_prev_frames(self, frame_index):
-    back_index = 0
-    is_new = 0
-    while not is_new:
-      back_index += 1
-      is_new = self.is_frame_new(frame_index - back_index)
-    back_index = frame_index - back_index;
-    while back_index < frame_index:
-      self.decode_frame(back_index)
-      back_index += 1
-
-  def decode_frame(self, frame_index):
-    if not self.prev_decoded_frame == frame_index - 1 and not self.is_frame_new(frame_index):
-      self.decode_prev_frames(frame_index)
+  def decode_frame(self, frame_index, diffing_flag=0x07):
+    if not self.prev_decoded_frame == frame_index - 1 and diffing_flag:
+      diffing_flag &= self.get_diffing_flag(frame_index)
+      self.decode_frame(frame_index - 1, diffing_flag=diffing_flag)
 
     meta = self.frame_meta[frame_index]
     offset = self.frame_offsets[frame_index]
@@ -163,8 +144,15 @@ class KWZParser:
       layer_length = meta[layer_index + 1]
       self.buffer.seek(offset)
       offset += layer_length
+
+      if not (diffing_flag >> layer_index) & 0x1:
+        continue
+
+      # skip if the layer is invisible
+      if not self.layer_visibility[layer_index]:
+        continue
       
-      # if the layer is 38 bytes then it hasn't changed since the previous frame, so we can skip it
+      # if the layer is 38 bytes then it hasn't changed at all since the previous frame, so we can skip it
       if layer_length == 38:
         continue
 
@@ -259,6 +247,18 @@ class KWZParser:
 
     self.prev_decoded_frame = frame_index
     return self.layer_pixels.view(np.uint8)
+
+  def get_frame_palette(self, frame_index):
+    flags = self.frame_meta[frame_index][0]
+    return [
+      flags & 0xF,         # paper color
+      (flags >> 8) & 0xF,  # layer A color 1
+      (flags >> 12) & 0xF, # layer A color 2
+      (flags >> 16) & 0xF, # layer B color 1
+      (flags >> 20) & 0xF, # layer B color 2
+      (flags >> 24) & 0xF, # layer C color 1
+      (flags >> 28) & 0xF, # layer C color 2
+    ]
 
   def get_frame_image(self, index):
     layers = self.decode_frame(index)
