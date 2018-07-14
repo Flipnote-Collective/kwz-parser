@@ -91,22 +91,21 @@ class KWZParser:
       self.sections[str(magic, 'utf-8')] = {"offset": offset, "length": length}
       offset += length + 8
 
-    # read part of the file header to get frame count, frame speed, etc
-    self.buffer.seek(204)
-    self.frame_count, self.thumb_index, self.frame_speed, layer_flags = struct.unpack("<HH2xBB", self.buffer.read(8))
-    self.framerate = FRAMERATES[self.frame_speed]
-    self.layer_visibility = [
-      (layer_flags) & 0x1 == 0,      # Layer A
-      (layer_flags >> 1) & 0x1 == 0, # Layer B
-      (layer_flags >> 2) & 0x1 == 0, # Layer C
-    ]
-
-    # detect if the file is a folder icon
-    if self.frame_count == 0:
-      self.is_folder_icon = True
-      self.frame_count += 1
+    # read file header -- not present in folder icons
+    if "KFH" in self.sections:
+      # read part of the file header to get frame count, frame speed, etc
+      self.buffer.seek(204)
+      self.frame_count, self.thumb_index, self.frame_speed, layer_flags = struct.unpack("<HH2xBB", self.buffer.read(8))
+      self.framerate = FRAMERATES[self.frame_speed]
+      self.layer_visibility = [
+        (layer_flags) & 0x1 == 0,      # Layer A
+        (layer_flags >> 1) & 0x1 == 0, # Layer B
+        (layer_flags >> 2) & 0x1 == 0, # Layer C
+      ]
+      self.is_folder_icon = False  
     else:
-      self.is_folder_icon = False
+      self.is_folder_icon = True
+      self.frame_count = 1
 
     # read sound data header -- not present in comments or icons
     if "KSN" in self.sections:
@@ -256,7 +255,7 @@ class KWZParser:
               elif type == 7:
                 pattern = self.read_bits(2)
                 use_table = self.read_bits(1)
-                
+
                 if use_table:
                   a_value = self.table1[self.read_bits(5)]
                   b_value = self.table1[self.read_bits(5)]
