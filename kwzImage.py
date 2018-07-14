@@ -1,7 +1,8 @@
+import glob
 from sys import argv
+import os
 from kwz import KWZParser, PALETTE
 from PIL import Image
-import numpy as np
 
 def get_image(parser, index):
   frame = parser.get_frame_image(index)
@@ -18,15 +19,31 @@ def get_image(parser, index):
   ])
   return img
 
-with open(argv[1], "rb") as kwz:
-  parser = KWZParser(kwz)
+parser = KWZParser()
+filelist = glob.glob(argv[1], recursive=True)
 
-  if argv[2] == "gif":
-    frame_duration = (1 / parser.framerate) * 1000
-    frames = [get_image(parser, i) for i in range(parser.frame_count)]
-    frames[0].save(argv[3], format="gif", save_all=True, append_images=frames[1:], duration=frame_duration, loop=False)
+for (index, path) in enumerate(filelist):
+  with open(path, "rb") as kwz:
+    basename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    filestem, ext = os.path.splitext(basename)
+    outpath = argv[3].format(name=filestem, dirname=dirname, index=index, ext=ext)
 
-  else:
-    index = int(argv[2])
-    img = get_image(parser, index)
-    img.save(argv[3])
+    print("Converting", path, "->", outpath)
+    parser.load(kwz)
+
+    if argv[2] == "gif":
+      frame_duration = (1 / parser.framerate) * 1000
+      frames = [get_image(parser, i) for i in range(parser.frame_count)]
+      frames[0].save(outpath, format="gif", save_all=True, append_images=frames[1:], duration=frame_duration, loop=False)
+
+    elif argv[2] == "thumb":
+      img = get_image(parser, parser.thumb_index)
+      img.save(outpath)
+
+    else:
+      index = int(argv[2])
+      img = get_image(parser, index)
+      img.save(outpath)
+
+    parser.unload()

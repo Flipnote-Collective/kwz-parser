@@ -26,55 +26,7 @@ PALETTE = [
 ]
 
 class KWZParser:
-  def __init__(self, buffer):
-    self.buffer = buffer
-    # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
-    self.buffer.seek(0, 2)
-    self.size = self.buffer.tell() - 256
-    self.buffer.seek(0, 0)
-    # build list of section offsets + lengths
-    self.sections = {}
-    offset = 0
-    while offset < self.size:
-      self.buffer.seek(offset)
-      magic, length = struct.unpack("<3sxI", self.buffer.read(8))
-      self.sections[str(magic, 'utf-8')] = {"offset": offset, "length": length}
-      offset += length + 8
-
-    # read part of the file header to get frame count, frame speed, etc
-    self.buffer.seek(204)
-    self.frame_count, self.thumb_index, self.frame_speed, layer_flags = struct.unpack("<HH2xBB", self.buffer.read(8))
-    self.framerate = FRAMERATES[self.frame_speed]
-    self.layer_visibility = [
-      (layer_flags) & 0x1 == 0,      # Layer A
-      (layer_flags >> 1) & 0x1 == 0, # Layer B
-      (layer_flags >> 2) & 0x1 == 0, # Layer C
-    ]
-
-    # detect if the file is a folder icon
-    if self.frame_count == 0:
-      self.is_folder_icon = True
-      self.frame_count += 1
-
-    # read sound data header -- not present in comments or icons
-    if "KSN" in self.sections:
-      self.buffer.seek(self.sections["KSN"]["offset"] + 8)
-      self.track_frame_speed = struct.unpack("<I", self.buffer.read(4))
-      self.track_lengths = struct.unpack("<IIIII", self.buffer.read(20))
-
-    # build frame meta list + frame offset list
-    self.frame_meta = []
-    self.frame_offsets = []
-    self.buffer.seek(self.sections["KMI"]["offset"] + 8)
-    offset = self.sections["KMC"]["offset"] + 12
-    # parse each frame meta entry
-    # https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz,-kwc-and-ico-format-documentation#kmi-memo-info-section
-    for i in range(self.frame_count):
-      meta = struct.unpack("<IHHH10xBBBBI", self.buffer.read(28))
-      self.frame_meta.append(meta)
-      self.frame_offsets.append(offset)
-      offset += meta[1] + meta[2] + meta[3]
-
+  def __init__(self, buffer=None):
     # table1 - commonly occuring line offsets
     self.table1 = np.array([
       0x0000, 0x0CD0, 0x19A0, 0x02D9, 0x088B, 0x0051, 0x00F3, 0x0009,
@@ -120,6 +72,76 @@ class KWZParser:
     self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
     self.bit_index = 16
     self.bit_value = 0
+
+    if buffer:
+      self.load(buffer)
+
+  def load(self, buffer):
+    self.buffer = buffer
+    # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
+    self.buffer.seek(0, 2)
+    self.size = self.buffer.tell() - 256
+    self.buffer.seek(0, 0)
+    # build list of section offsets + lengths
+    self.sections = {}
+    offset = 0
+    while offset < self.size:
+      self.buffer.seek(offset)
+      magic, length = struct.unpack("<3sxI", self.buffer.read(8))
+      self.sections[str(magic, 'utf-8')] = {"offset": offset, "length": length}
+      offset += length + 8
+
+    # read part of the file header to get frame count, frame speed, etc
+    self.buffer.seek(204)
+    self.frame_count, self.thumb_index, self.frame_speed, layer_flags = struct.unpack("<HH2xBB", self.buffer.read(8))
+    self.framerate = FRAMERATES[self.frame_speed]
+    self.layer_visibility = [
+      (layer_flags) & 0x1 == 0,      # Layer A
+      (layer_flags >> 1) & 0x1 == 0, # Layer B
+      (layer_flags >> 2) & 0x1 == 0, # Layer C
+    ]
+
+    # detect if the file is a folder icon
+    if self.frame_count == 0:
+      self.is_folder_icon = True
+      self.frame_count += 1
+    else:
+      self.is_folder_icon = False
+
+    # read sound data header -- not present in comments or icons
+    if "KSN" in self.sections:
+      self.buffer.seek(self.sections["KSN"]["offset"] + 8)
+      self.track_frame_speed = struct.unpack("<I", self.buffer.read(4))
+      self.track_lengths = struct.unpack("<IIIII", self.buffer.read(20))
+
+    # build frame meta list + frame offset list
+    self.frame_meta = []
+    self.frame_offsets = []
+    self.buffer.seek(self.sections["KMI"]["offset"] + 8)
+    offset = self.sections["KMC"]["offset"] + 12
+    # parse each frame meta entry
+    # https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz,-kwc-and-ico-format-documentation#kmi-memo-info-section
+    for i in range(self.frame_count):
+      meta = struct.unpack("<IHHH10xBBBBI", self.buffer.read(28))
+      self.frame_meta.append(meta)
+      self.frame_offsets.append(offset)
+      offset += meta[1] + meta[2] + meta[3]
+
+    self.prev_decoded_frame = -1
+
+  def unload(self):
+    self.buffer.close()
+    self.size = 0
+    self.sections = {}
+    self.frame_count = 0
+    self.thumb_index = 0
+    self.frame_speed = 0
+    self.layer_visibility = [False, False, False]
+    self.is_folder_icon = False
+    self.frame_meta = []
+    self.frame_offsets = []
+    self.track_frame_speed = 0
+    self.track_lengths = [0, 0, 0, 0, 0]
     self.prev_decoded_frame = -1
 
   def read_bits(self, num):
