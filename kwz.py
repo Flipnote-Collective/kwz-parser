@@ -51,10 +51,16 @@ class KWZParser:
       (layer_flags >> 2) & 0x1 == 0, # Layer C
     ]
 
-    # read sound data header
-    self.buffer.seek(self.sections["KSN"]["offset"] + 8)
-    self.track_frame_speed = struct.unpack("<I", self.buffer.read(4))
-    self.track_lengths = struct.unpack("<IIIII", self.buffer.read(20))
+    # detect if the file is a folder icon
+    if self.frame_count == 0:
+      self.is_folder_icon = True
+      self.frame_count += 1
+
+    # read sound data header -- not present in comments or icons
+    if "KSN" in self.sections:
+      self.buffer.seek(self.sections["KSN"]["offset"] + 8)
+      self.track_frame_speed = struct.unpack("<I", self.buffer.read(4))
+      self.track_lengths = struct.unpack("<IIIII", self.buffer.read(20))
 
     # build frame meta list + frame offset list
     self.frame_meta = []
@@ -266,9 +272,15 @@ class KWZParser:
 
   def get_frame_image(self, index):
     layers = self.decode_frame(index)
-    image = np.zeros((240, 320), dtype=np.uint8)
-    for y in range(240):
-      for x in range(320):
+    if self.is_folder_icon:
+      width = 24
+      height = 24
+    else:
+      width = 320
+      height = 240
+    image = np.zeros((height, width), dtype=np.uint8)
+    for y in range(height):
+      for x in range(width):
         a = layers[0][y][x]
         b = layers[1][y][x]
         c = layers[2][y][x]
