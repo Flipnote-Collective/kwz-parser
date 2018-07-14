@@ -129,12 +129,16 @@ class KWZParser:
     return result
 
   def get_diffing_flag(self, frame_index):
+    # bits are inverted so that if a bit is set, it indicates a layer needs to be decoded
     return ~(self.frame_meta[frame_index][0] >> 4) & 0x07
 
-  def decode_frame(self, frame_index, diffing_flag=0x07):
+  def decode_frame(self, frame_index, diffing_flag=0x07, is_prev_frame=False):
+    # if this frame is being decoded as a prev frame, then we only want to decode the layers necessary
+    if is_prev_frame:
+      diffing_flag &= self.get_diffing_flag(frame_index + 1)
+    # the self.prev_decoded_frame check is an optimisation for decoding frames in full sequence
     if not self.prev_decoded_frame == frame_index - 1 and diffing_flag:
-      diffing_flag &= self.get_diffing_flag(frame_index)
-      self.decode_frame(frame_index - 1, diffing_flag=diffing_flag)
+      self.decode_frame(frame_index - 1, diffing_flag=diffing_flag, is_prev_frame=True)
 
     meta = self.frame_meta[frame_index]
     offset = self.frame_offsets[frame_index]
@@ -145,6 +149,10 @@ class KWZParser:
       self.buffer.seek(offset)
       offset += layer_length
 
+      # if the layer is 38 bytes then it hasn't changed at all since the previous frame, so we can skip it
+      if layer_length == 38:
+        continue
+
       if not (diffing_flag >> layer_index) & 0x1:
         continue
 
@@ -152,10 +160,6 @@ class KWZParser:
       if not self.layer_visibility[layer_index]:
         continue
       
-      # if the layer is 38 bytes then it hasn't changed at all since the previous frame, so we can skip it
-      if layer_length == 38:
-        continue
-
       pixel_buffer = self.layer_pixels[layer_index]
       self.bit_index = 16
       self.bit_value = 0
