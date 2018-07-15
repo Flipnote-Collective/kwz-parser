@@ -217,12 +217,12 @@ class KWZParser:
               type = self.read_bits(3)
 
               if type == 0:
-                line_value = self.table1[self.read_bits(5)]
-                tile_buffer[0:8] = [self.linetable[line_value]] * 8
+                line_index = self.table1[self.read_bits(5)]
+                tile_buffer[0:8] = [self.linetable[line_index] * 8
 
               elif type == 1:
-                line_value = self.read_bits(13)
-                tile_buffer[0:8] = [self.linetable[line_value]] * 8
+                line_index = self.read_bits(13)
+                tile_buffer[0:8] = [self.linetable[line_index]] * 8
 
               elif type == 2:
                 line_value = self.read_bits(5)
@@ -240,10 +240,10 @@ class KWZParser:
                 mask = self.read_bits(8)
                 for i in range(8):
                   if mask & (1 << i):
-                    line_value = self.table1[self.read_bits(5)]
+                    line_index = self.table1[self.read_bits(5)]
                   else:
-                    line_value = self.read_bits(13)
-                  tile_buffer[i] = self.linetable[line_value]
+                    line_index = self.read_bits(13)
+                  tile_buffer[i] = self.linetable[line_index]
 
               elif type == 5:
                 skip = self.read_bits(5)
@@ -257,12 +257,12 @@ class KWZParser:
                 use_table = self.read_bits(1)
 
                 if use_table:
-                  a_value = self.table1[self.read_bits(5)]
-                  b_value = self.table1[self.read_bits(5)]
+                  a_index = self.table1[self.read_bits(5)]
+                  b_index = self.table1[self.read_bits(5)]
                   pattern = (pattern + 1) % 4
                 else:
-                  a_value = self.read_bits(13)
-                  b_value = self.read_bits(13)
+                  a_index = self.read_bits(13)
+                  b_index = self.read_bits(13)
 
                 a = self.linetable[a_value]
                 b = self.linetable[b_value]
@@ -273,8 +273,8 @@ class KWZParser:
                 if pattern == 3: tile_buffer[0:8] = [a, b, b, a, b, b, a, b]
 
               # copy each line of the tile into the layer's pixel buffer
-              for line_index in range(0, 8):
-                pixel_buffer[y + line_index][x // 8] = tile_buffer[line_index]
+              for line in range(0, 8):
+                pixel_buffer[y + line][x // 8] = tile_buffer[line]
 
     self.prev_decoded_frame = frame_index
     return self.layer_pixels.view(np.uint8)
@@ -300,17 +300,18 @@ class KWZParser:
       width = 320
       height = 240
     image = np.zeros((height, width), dtype=np.uint8)
+
+    layer_depths = self.frame_meta[index][4:7]
+    # get a list of layer indexes (from 0 (layer A) to 2 (layer C)), sorted by layer depth
+    # the layer depth closest to 6 should be first, closest to 0 last
+    layer_order = np.argsort(layer_depths)[::-1]
+
     for y in range(height):
       for x in range(width):
-        a = layers[0][y][x]
-        b = layers[1][y][x]
-        c = layers[2][y][x]
-        if (c):
-          image[y][x] = c + 4
-        if (b):
-          image[y][x] = b + 2
-        if (a):
-          image[y][x] = a
+        for layer_index in layer_order:
+          pixel = layers[layer_index][y][x]
+          if pixel:
+            image[y][x] = pixel + layer_index * 2
     return image
 
   def has_audio_track(self, track_index):
