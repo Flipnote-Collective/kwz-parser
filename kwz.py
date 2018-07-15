@@ -281,8 +281,8 @@ class KWZParser:
                   a_index = self.read_bits(13)
                   b_index = self.read_bits(13)
 
-                a = self.linetable[a_value]
-                b = self.linetable[b_value]
+                a = self.linetable[a_index]
+                b = self.linetable[b_index]
 
                 if pattern == 0: tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
                 if pattern == 1: tile_buffer[0:8] = [a, a, b, a, a, b, a, a]

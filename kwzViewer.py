@@ -11,6 +11,7 @@
 from sys import argv
 from kwz import KWZParser, PALETTE
 import pygame
+import numpy as np
 
 class layerSurface:
   def __init__(self, size=(320, 240)):
