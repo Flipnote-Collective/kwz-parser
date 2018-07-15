@@ -24,9 +24,6 @@ with open(argv[1], "rb")as kwz:
 
   data = parser.get_audio_track(track_index)
 
-  with open(argv[4], "wb") as f:
-    f.write(data)
-
   samples, state = audioop.adpcm2lin(data, 2, None)
   audio.writeframes(samples)
   audio.close()

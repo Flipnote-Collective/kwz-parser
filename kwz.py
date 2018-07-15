@@ -235,7 +235,7 @@ class KWZParser:
 
               if type == 0:
                 line_index = self.table1[self.read_bits(5)]
-                tile_buffer[0:8] = [self.linetable[line_index] * 8
+                tile_buffer[0:8] = [self.linetable[line_index]] * 8
 
               elif type == 1:
                 line_index = self.read_bits(13)
