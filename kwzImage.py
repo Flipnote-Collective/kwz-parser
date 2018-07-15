@@ -1,3 +1,12 @@
+# =========================
+# kwzImage.py version 1.0.0
+# =========================
+# 
+# Exports a Flipnote audio track and converts it to WAV
+# 
+# Usage:
+# python kwzImage.py <input path> <frame index> <output path>
+
 import glob
 from sys import argv
 import os

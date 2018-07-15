@@ -1,3 +1,20 @@
+# ====================
+# kwz.py version 1.0.0
+# ====================
+# 
+# Class for reading frame data and audio from Flipnote Studio 3D's .kwz, .ico, and .kwc formats
+# Implementation by James Daniel (github.com/jaames | rakujira.jp)
+# 
+# Credits:
+#   MrNbaYoh - identifying the use of a line table
+#   Kinnay - reverse-engineering tile compression
+#   Shutterbug - early decompression and frame diffing work
+#   Stary, JoshuaDoes and thejsa - debugging/optimisation help
+#   Sudofox - audio format help and comment sample files
+# 
+# Format docs:
+#   https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz-format
+
 import struct
 import numpy as np
 
@@ -119,7 +136,7 @@ class KWZParser:
     self.buffer.seek(self.sections["KMI"]["offset"] + 8)
     offset = self.sections["KMC"]["offset"] + 12
     # parse each frame meta entry
-    # https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz,-kwc-and-ico-format-documentation#kmi-memo-info-section
+    # https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz-format#kmi-frame-meta 
     for i in range(self.frame_count):
       meta = struct.unpack("<IHHH10xBBBBI", self.buffer.read(28))
       self.frame_meta.append(meta)

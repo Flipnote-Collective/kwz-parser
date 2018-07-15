@@ -1,6 +1,15 @@
+# ==========================
+# kwzViewer.py version 1.0.0
+# ==========================
+# 
+# Crappy viewer made with pygame. 
+# It doesn't quite achieve realtime decoding for most Flipnotes, but it can be useful as a quick debug tool.
+# 
+# Usage:
+# python kwzViewer.py <input.kwz>
+
 from sys import argv
 from kwz import KWZParser, PALETTE
-import numpy as np
 import pygame
 
 class layerSurface:

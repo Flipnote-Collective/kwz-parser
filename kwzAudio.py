@@ -1,3 +1,12 @@
+# =========================
+# kwzAudio.py version 1.0.0
+# =========================
+# 
+# Exports a Flipnote audio track and converts it to WAV
+# 
+# Usage:
+# python kwzAudio.py <input.kwz> <track id> <output.wav>
+
 from sys import argv
 from kwz import KWZParser
 import wave
