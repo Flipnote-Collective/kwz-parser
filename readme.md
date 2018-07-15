@@ -1,4 +1,4 @@
-Experimental decoder and utilities for Flipnote Studio 3D's .kwz animation format. Frames can be decoded without any problems, however audio still needs some work.
+Experimental decoder and utilities (image/video conversion, etc) for Flipnote Studio 3D's .kwz animation format. Frames can be decoded without any problems, however audio still needs some work.
 
 All scripts were written for Python 3.7 and require the [numpy](http://www.numpy.org/) module to be installed.
 
@@ -40,7 +40,17 @@ python kwzImage.py <input path> <frame index> <output path>
 	```bash
 	python kwzImage.py "/flipnotes/*.kwz" thumb /flipnotes/{name}.png
 	```
-    
+
+### kwzVideo
+
+Experimental kwz to mp4 encoder using [ffmpeg](https://www.ffmpeg.org/). Tries to ensure optimal compression and image quality while also upscaling the Flipntote to 480p.
+
+Usage: 
+
+```bash
+python kwzVideo.py <input.kwz> <output.kwz>
+```
+
 ### kwzAudio
 
 Exports a Flipnote audio track and converts it to WAV. **Note:** We haven't *quite* perfected audio decoding yet. Any help would be appreciated!
