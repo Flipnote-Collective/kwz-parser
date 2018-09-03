@@ -93,6 +93,11 @@ class KWZParser:
     if buffer:
       self.load(buffer)
 
+  @classmethod
+  def open(cls, path):
+    with open(path, "rb") as buffer:
+      return cls(buffer)
+
   def load(self, buffer):
     self.buffer = buffer
     # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
@@ -110,15 +115,7 @@ class KWZParser:
 
     # read file header -- not present in folder icons
     if "KFH" in self.sections:
-      # read part of the file header to get frame count, frame speed, etc
-      self.buffer.seek(204)
-      self.frame_count, self.thumb_index, self.frame_speed, layer_flags = struct.unpack("<HH2xBB", self.buffer.read(8))
-      self.framerate = FRAMERATES[self.frame_speed]
-      self.layer_visibility = [
-        (layer_flags) & 0x1 == 0,      # Layer A
-        (layer_flags >> 1) & 0x1 == 0, # Layer B
-        (layer_flags >> 2) & 0x1 == 0, # Layer C
-      ]
+      self.decode_meta()
       self.is_folder_icon = False  
     else:
       self.is_folder_icon = True
@@ -171,6 +168,45 @@ class KWZParser:
     self.bit_value >>= num
     self.bit_index += num
     return result
+
+  def decode_meta(self):
+    self.buffer.seek(self.sections["KFH"]["offset"] + 12)
+    creation_timestamp, modified_timestamp, app_version = struct.unpack("<III", self.buffer.read(12))
+    root_author_id, parent_author_id, current_author_id = struct.unpack("<10s10s10s", self.buffer.read(30)) 
+    root_author_name, parent_author_name, current_author_name = struct.unpack("<22s22s22s", self.buffer.read(66))
+    root_filename, parent_filename, current_filename = struct.unpack("<28s28s28s", self.buffer.read(84))
+    self.frame_count, self.thumb_index, flags, self.frame_speed, layer_flags = struct.unpack("<HHHBB", self.buffer.read(8))
+    self.framerate = FRAMERATES[self.frame_speed]
+    self.layer_visibility = [
+      (layer_flags) & 0x1 == 0,      # Layer A
+      (layer_flags >> 1) & 0x1 == 0, # Layer B
+      (layer_flags >> 2) & 0x1 == 0, # Layer C
+    ]
+    self.meta = {
+      "lock": flags & 0x1,
+      "loop": (flags >> 1) & 0x01,
+      "frame_count": self.frame_count,
+      "frame_speed": self.frame_speed,
+      "thumb_index": self.thumb_index,
+      "timestamp": modified_timestamp,
+      "creation_timestamp": creation_timestamp,
+      "root": {
+        "username": root_author_name.decode("utf-16").rstrip("\x00"),
+        "fsid": root_author_id.hex(),
+        "filename": root_filename.decode("utf-8"),
+      },
+      "parent": {
+        "username": parent_author_name.decode("utf-16").rstrip("\x00"),
+        "fsid": parent_author_id.hex(),
+        "filename": parent_filename.decode("utf-8"),
+      },
+      "current": {
+        "username": current_author_name.decode("utf-16").rstrip("\x00"),
+        "fsid": current_author_id.hex(),
+        "filename": current_filename.decode("utf-8"),
+      }
+    }
+    return self.meta
 
   def get_diffing_flag(self, frame_index):
     # bits are inverted so that if a bit is set, it indicates a layer needs to be decoded
@@ -344,3 +380,7 @@ class KWZParser:
     # swap nibbles
     data = bytes(((byte << 4) & 0xF0) | (byte >> 4) for byte in self.buffer.read(size))
     return data
+
+if __name__ == "__main__":
+  from sys import argv
+  KWZParser.open(argv[1])
