@@ -4,7 +4,7 @@ All scripts were written for Python 3.7 and require the [numpy](http://www.numpy
 
 #### Credits
 
-* **Jaames** - general reverse-engineering and python implementation
+* **[Jaames](https://github.com/jaames)** - general reverse-engineering and python implementation
 * **[MrNbaYoh](https://github.com/MrNbaYoh)** - identifying the use of a line table
 * **[Kinnay](https://github.com/Kinnay)** - reverse-engineering tile compression
 * **[Shutterbug](https://github.com/shutterbug2000)** - early decompression and frame diffing work
