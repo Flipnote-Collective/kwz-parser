@@ -1,13 +1,14 @@
-Experimental decoder and utilities (image/video conversion, etc) for Flipnote Studio 3D's .kwz animation format. Frames can be decoded without any problems, however audio still needs some work.
+Experimental decoder and utilities (image/video conversion, etc) for Flipnote Studio 3D's .kwz animation format. Frames and audio can both be decoded without any problems.
 
 All scripts were written for Python 3.7 and require the [numpy](http://www.numpy.org/) module to be installed.
 
 #### Credits
 
 * **[Jaames](https://github.com/jaames)** - general reverse-engineering and python implementation
-* **[MrNbaYoh](https://github.com/MrNbaYoh)** - identifying the use of a line table
 * **[Kinnay](https://github.com/Kinnay)** - reverse-engineering tile compression
+* **[Khangaroo](https://github.com/khang06)** - reverse-engineering a large chunk of the audio format
 * **[Shutterbug](https://github.com/shutterbug2000)** - early decompression and frame diffing work
+* **[MrNbaYoh](https://github.com/MrNbaYoh)** - identifying the use of a line table
 * **[Stary](https://github.com/stary2001)**, **[JoshuaDoes](https://github.com/JoshuaDoes)** and **[thejsa](https://github.com/thejsa)** - debugging/optimisation help
 * **[Sudofox](https://github.com/sudofox)** - audio format help and comment sample files
 
@@ -53,7 +54,7 @@ python kwzVideo.py <input.kwz> <output.kwz>
 
 ### kwzAudio
 
-Exports a Flipnote audio track and converts it to WAV. **Note:** We haven't *quite* perfected audio decoding yet. Any help would be appreciated!
+Exports a Flipnote audio track and converts it to WAV.
 
 **Usage:**
 

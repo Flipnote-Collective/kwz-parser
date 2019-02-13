@@ -6,9 +6,10 @@
 # Implementation by James Daniel (github.com/jaames | rakujira.jp)
 # 
 # Credits:
-#   MrNbaYoh - identifying the use of a line table
 #   Kinnay - reverse-engineering tile compression
+#   Khangaroo - reverse-engineering a large chunk of the audio format
 #   Shutterbug - early decompression and frame diffing work
+#   MrNbaYoh - identifying the use of a line table
 #   Stary, JoshuaDoes and thejsa - debugging/optimisation help
 #   Sudofox - audio format help and comment sample files
 # 
@@ -87,6 +88,53 @@ class KWZParser:
 
     # layer buffers w/ rearranged tiles 
     self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
+
+    self.adpcm_step_table = np.array([
+      7,     8,     9,     10,    11,    12,    13,    14,    16,    17,
+      19,    21,    23,    25,    28,    31,    34,    37,    41,    45,
+      50,    55,    60,    66,    73,    80,    88,    97,    107,   118,
+      130,   143,   157,   173,   190,   209,   230,   253,   279,   307,
+      337,   371,   408,   449,   494,   544,   598,   658,   724,   796,
+      876,   963,   1060,  1166,  1282,  1411,  1552,  1707,  1878,  2066,
+      2272,  2499,  2749,  3024,  3327,  3660,  4026,  4428,  4871,  5358,
+      5894,  6484,  7132,  7845,  8630,  9493,  10442, 11487, 12635, 13899,
+      15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767, 0
+    ], dtype=np.int16)
+
+    # index table for 2-bit samples
+    self.adpcm_index_table_2 = np.array([
+      -1,  2,
+      -1,  2,
+    ], dtype=np.int8)
+
+    # index table for 4-bit samples
+    self.adpcm_index_table_4 = np.array([
+      -1, -1, -1, -1, 2, 4, 6, 8,
+      -1, -1, -1, -1, 2, 4, 6, 8,
+    ], dtype=np.int8)
+
+    # create a table that maps 2-bit adpcm sample values to pcm samples
+    self.adpcm_sample_table_2 = np.zeros(90 * 4, dtype=np.int16)
+    for sample in range (4):
+      for step_index in range(90):
+        step = self.adpcm_step_table[step_index]
+        diff = step >> 3
+        if (sample & 1): diff += step;
+        if (sample & 2): diff = -diff;
+        self.adpcm_sample_table_2[(sample + 4 * step_index)] = diff
+
+    # create a table that maps 4-bit adpcm sample values to pcm samples
+    self.adpcm_sample_table_4 = np.zeros(90 * 16, dtype=np.int16)
+    for sample in range (16):
+      for step_index in range(90):
+        step = self.adpcm_step_table[step_index]
+        diff = step >> 3;
+        if (sample & 4): diff += step;
+        if (sample & 2): diff += step >> 1;
+        if (sample & 1): diff += step >> 2;
+        if (sample & 8): diff = -diff;
+        self.adpcm_sample_table_4[(sample + 16 * step_index)] = diff
+
     self.bit_index = 16
     self.bit_value = 0
 
@@ -377,9 +425,53 @@ class KWZParser:
     for i in range(track_index):
       offset += self.track_lengths[i]
     self.buffer.seek(offset)
-    # swap nibbles
-    data = bytes(((byte << 4) & 0xF0) | (byte >> 4) for byte in self.buffer.read(size))
-    return data
+
+    # create an output buffer with enough space for 60 seconds of audio at 16364 Hz
+    output = np.zeros(16364 * 60, dtype="<u2");
+    outputOffset = 0
+
+    # initial decoder state
+    prev_diff = 0
+    prev_step_index = 40
+
+    for byte in self.buffer.read(size):
+
+      bit_pos = 0
+      while bit_pos < 8:
+
+        # read a 2-bit sample if the previous step index is < 18, or if only 2 bits are left of the byte
+        if prev_step_index < 18 or bit_pos == 6:
+          # isolate 2-bit sample
+          sample = (byte >> bit_pos) & 0x3
+          # get diff
+          diff = prev_diff + self.adpcm_sample_table_2[sample + 4 * prev_step_index]
+          # get step index
+          step_index = prev_step_index + self.adpcm_index_table_2[sample]
+          bit_pos += 2
+
+        # else read a 4-bit sample
+        else:
+          # isolate 4-bit sample
+          sample = (byte >> bit_pos) & 0xF
+          # get diff
+          diff = prev_diff + self.adpcm_sample_table_4[sample + 16 * prev_step_index]
+          # get step index
+          step_index = prev_step_index + self.adpcm_index_table_4[sample]
+          bit_pos += 4
+
+        # clamp step index and diff
+        step_index = max(0, min(step_index, 79))
+        diff = max(-2048, min(diff, 2048))
+
+        # add result to output buffer
+        output[outputOffset] = diff * 16
+        outputOffset +=1
+
+        # set prev decoder state
+        prev_step_index = step_index
+        prev_diff = diff
+
+    return output[:outputOffset]
 
 if __name__ == "__main__":
   from sys import argv
