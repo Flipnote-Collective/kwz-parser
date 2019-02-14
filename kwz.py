@@ -43,103 +43,101 @@ PALETTE = [
   (0xff, 0xff, 0xff),
 ]
 
+# table1 - commonly occuring line offsets
+TABLE_1 = np.array([
+  0x0000, 0x0CD0, 0x19A0, 0x02D9, 0x088B, 0x0051, 0x00F3, 0x0009,
+  0x001B, 0x0001, 0x0003, 0x05B2, 0x1116, 0x00A2, 0x01E6, 0x0012,
+  0x0036, 0x0002, 0x0006, 0x0B64, 0x08DC, 0x0144, 0x00FC, 0x0024,
+  0x001C, 0x0004, 0x0334, 0x099C, 0x0668, 0x1338, 0x1004, 0x166C
+], dtype=np.uint16)
+
+# table2 - commonly occuring line offsets, but the lines are shifted to the left by one pixel
+TABLE_2= np.array([
+  0x0000, 0x0CD0, 0x19A0, 0x0003, 0x02D9, 0x088B, 0x0051, 0x00F3, 
+  0x0009, 0x001B, 0x0001, 0x0006, 0x05B2, 0x1116, 0x00A2, 0x01E6, 
+  0x0012, 0x0036, 0x0002, 0x02DC, 0x0B64, 0x08DC, 0x0144, 0x00FC, 
+  0x0024, 0x001C, 0x099C, 0x0334, 0x1338, 0x0668, 0x166C, 0x1004
+], dtype=np.uint16)
+
+# table3 - line offsets, but the lines are shifted to the left by one pixel
+TABLE_3 = np.zeros((6561), dtype=np.uint16)
+values = [0, 3, 7, 1, 4, 8, 2, 5, 6]
+index = 0
+for a in range(9):
+  for b in range(9):
+    for c in range(9):
+      for d in range(9):
+        TABLE_3[index] = ((values[a] * 9 + values[b]) * 9 + values[c]) * 9 + values[d]
+        index += 1
+
+# linetable - contains every possible sequence of pixels for each tile line
+LINE_TABLE = np.zeros((6561), dtype="V8")
+index = 0
+for a in range(3):
+  for b in range(3):
+    for c in range(3):
+      for d in range(3):
+        for e in range(3):
+          for f in range(3):
+            for g in range(3):
+              for h in range(3):
+                LINE_TABLE[index] = bytes([b, a, d, c, f, e, h, g])
+                index += 1
+
+ADPCM_STEP_TABLE = np.array([
+  7,     8,     9,     10,    11,    12,    13,    14,    16,    17,
+  19,    21,    23,    25,    28,    31,    34,    37,    41,    45,
+  50,    55,    60,    66,    73,    80,    88,    97,    107,   118,
+  130,   143,   157,   173,   190,   209,   230,   253,   279,   307,
+  337,   371,   408,   449,   494,   544,   598,   658,   724,   796,
+  876,   963,   1060,  1166,  1282,  1411,  1552,  1707,  1878,  2066,
+  2272,  2499,  2749,  3024,  3327,  3660,  4026,  4428,  4871,  5358,
+  5894,  6484,  7132,  7845,  8630,  9493,  10442, 11487, 12635, 13899,
+  15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767, 0
+], dtype=np.int16)
+
+# index table for 2-bit samples
+ADPCM_INDEX_TABLE_2 = np.array([
+  -1,  2,
+  -1,  2,
+], dtype=np.int8)
+
+# index table for 4-bit samples
+ADPCM_INDEX_TABLE_4 = np.array([
+  -1, -1, -1, -1, 2, 4, 6, 8,
+  -1, -1, -1, -1, 2, 4, 6, 8,
+], dtype=np.int8)
+
+# lookup table that maps 2-bit adpcm sample values to pcm samples
+ADPCM_SAMPLE_TABLE_2 = np.zeros(90 * 4, dtype=np.int16)
+for sample in range (4):
+  for step_index in range(90):
+    step = ADPCM_STEP_TABLE[step_index]
+    diff = step >> 3
+    if (sample & 1): diff += step;
+    if (sample & 2): diff = -diff;
+    ADPCM_SAMPLE_TABLE_2[sample + 4 * step_index] = diff
+
+# lookup table that maps 4-bit adpcm sample values to pcm samples
+ADPCM_SAMPLE_TABLE_4 = np.zeros(90 * 16, dtype=np.int16)
+for sample in range (16):
+  for step_index in range(90):
+    step = ADPCM_STEP_TABLE[step_index]
+    diff = step >> 3;
+    if (sample & 4): diff += step;
+    if (sample & 2): diff += step >> 1;
+    if (sample & 1): diff += step >> 2;
+    if (sample & 8): diff = -diff;
+    ADPCM_SAMPLE_TABLE_4[sample + 16 * step_index] = diff
+
 class KWZParser:
   def __init__(self, buffer=None):
-    # table1 - commonly occuring line offsets
-    self.table1 = np.array([
-      0x0000, 0x0CD0, 0x19A0, 0x02D9, 0x088B, 0x0051, 0x00F3, 0x0009,
-      0x001B, 0x0001, 0x0003, 0x05B2, 0x1116, 0x00A2, 0x01E6, 0x0012,
-      0x0036, 0x0002, 0x0006, 0x0B64, 0x08DC, 0x0144, 0x00FC, 0x0024,
-      0x001C, 0x0004, 0x0334, 0x099C, 0x0668, 0x1338, 0x1004, 0x166C
-    ], dtype=np.uint16)
-
-    # table2 - commonly occuring line offsets, but the lines are shifted to the left by one pixel
-    self.table2 = np.array([
-      0x0000, 0x0CD0, 0x19A0, 0x0003, 0x02D9, 0x088B, 0x0051, 0x00F3, 
-      0x0009, 0x001B, 0x0001, 0x0006, 0x05B2, 0x1116, 0x00A2, 0x01E6, 
-      0x0012, 0x0036, 0x0002, 0x02DC, 0x0B64, 0x08DC, 0x0144, 0x00FC, 
-      0x0024, 0x001C, 0x099C, 0x0334, 0x1338, 0x0668, 0x166C, 0x1004
-    ], dtype=np.uint16)
-
-    # table3 - line offsets, but the lines are shifted to the left by one pixel
-    self.table3 = np.zeros((6561), dtype=np.uint16)
-    values = [0, 3, 7, 1, 4, 8, 2, 5, 6]
-    index = 0
-    for a in range(9):
-      for b in range(9):
-        for c in range(9):
-          for d in range(9):
-            self.table3[index] = ((values[a] * 9 + values[b]) * 9 + values[c]) * 9 + values[d]
-            index += 1
-
-    # linetable - contains every possible sequence of pixels for each tile line
-    self.linetable = np.zeros((6561), dtype="V8")
-    index = 0
-    for a in range(3):
-      for b in range(3):
-        for c in range(3):
-          for d in range(3):
-            for e in range(3):
-              for f in range(3):
-                for g in range(3):
-                  for h in range(3):
-                    self.linetable[index] = bytes([b, a, d, c, f, e, h, g])
-                    index += 1
-
-    # layer buffers w/ rearranged tiles 
+    # layer output buffers
     self.layer_pixels = np.zeros((3, 240, 40), dtype="V8")
-
-    self.adpcm_step_table = np.array([
-      7,     8,     9,     10,    11,    12,    13,    14,    16,    17,
-      19,    21,    23,    25,    28,    31,    34,    37,    41,    45,
-      50,    55,    60,    66,    73,    80,    88,    97,    107,   118,
-      130,   143,   157,   173,   190,   209,   230,   253,   279,   307,
-      337,   371,   408,   449,   494,   544,   598,   658,   724,   796,
-      876,   963,   1060,  1166,  1282,  1411,  1552,  1707,  1878,  2066,
-      2272,  2499,  2749,  3024,  3327,  3660,  4026,  4428,  4871,  5358,
-      5894,  6484,  7132,  7845,  8630,  9493,  10442, 11487, 12635, 13899,
-      15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767, 0
-    ], dtype=np.int16)
-
-    # index table for 2-bit samples
-    self.adpcm_index_table_2 = np.array([
-      -1,  2,
-      -1,  2,
-    ], dtype=np.int8)
-
-    # index table for 4-bit samples
-    self.adpcm_index_table_4 = np.array([
-      -1, -1, -1, -1, 2, 4, 6, 8,
-      -1, -1, -1, -1, 2, 4, 6, 8,
-    ], dtype=np.int8)
-
-    # create a table that maps 2-bit adpcm sample values to pcm samples
-    self.adpcm_sample_table_2 = np.zeros(90 * 4, dtype=np.int16)
-    for sample in range (4):
-      for step_index in range(90):
-        step = self.adpcm_step_table[step_index]
-        diff = step >> 3
-        if (sample & 1): diff += step;
-        if (sample & 2): diff = -diff;
-        self.adpcm_sample_table_2[(sample + 4 * step_index)] = diff
-
-    # create a table that maps 4-bit adpcm sample values to pcm samples
-    self.adpcm_sample_table_4 = np.zeros(90 * 16, dtype=np.int16)
-    for sample in range (16):
-      for step_index in range(90):
-        step = self.adpcm_step_table[step_index]
-        diff = step >> 3;
-        if (sample & 4): diff += step;
-        if (sample & 2): diff += step >> 1;
-        if (sample & 1): diff += step >> 2;
-        if (sample & 8): diff = -diff;
-        self.adpcm_sample_table_4[(sample + 16 * step_index)] = diff
-
+    # initial values for read_bits()
     self.bit_index = 16
     self.bit_value = 0
-
-    if buffer:
-      self.load(buffer)
+    if buffer: self.load(buffer)
 
   @classmethod
   def open(cls, path):
@@ -318,33 +316,33 @@ class KWZParser:
               type = self.read_bits(3)
 
               if type == 0:
-                line_index = self.table1[self.read_bits(5)]
-                tile_buffer[0:8] = [self.linetable[line_index]] * 8
+                line_index = TABLE_1[self.read_bits(5)]
+                tile_buffer[0:8] = [LINE_TABLE[line_index]] * 8
 
               elif type == 1:
                 line_index = self.read_bits(13)
-                tile_buffer[0:8] = [self.linetable[line_index]] * 8
+                tile_buffer[0:8] = [LINE_TABLE[line_index]] * 8
 
               elif type == 2:
                 line_value = self.read_bits(5)
-                a = self.linetable[self.table1[line_value]]
-                b = self.linetable[self.table2[line_value]]
+                a = LINE_TABLE[TABLE_1[line_value]]
+                b = LINE_TABLE[TABLE_2[line_value]]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
               
               elif type == 3:
                 line_value = self.read_bits(13)
-                a = self.linetable[line_value]
-                b = self.linetable[self.table3[line_value]]
+                a = LINE_TABLE[line_value]
+                b = LINE_TABLE[TABLE_3[line_value]]
                 tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
 
               elif type == 4:
                 mask = self.read_bits(8)
                 for i in range(8):
                   if mask & (1 << i):
-                    line_index = self.table1[self.read_bits(5)]
+                    line_index = TABLE_1[self.read_bits(5)]
                   else:
                     line_index = self.read_bits(13)
-                  tile_buffer[i] = self.linetable[line_index]
+                  tile_buffer[i] = LINE_TABLE[line_index]
 
               elif type == 5:
                 skip = self.read_bits(5)
@@ -358,15 +356,15 @@ class KWZParser:
                 use_table = self.read_bits(1)
 
                 if use_table:
-                  a_index = self.table1[self.read_bits(5)]
-                  b_index = self.table1[self.read_bits(5)]
+                  a_index = TABLE_1[self.read_bits(5)]
+                  b_index = TABLE_1[self.read_bits(5)]
                   pattern = (pattern + 1) % 4
                 else:
                   a_index = self.read_bits(13)
                   b_index = self.read_bits(13)
 
-                a = self.linetable[a_index]
-                b = self.linetable[b_index]
+                a = LINE_TABLE[a_index]
+                b = LINE_TABLE[b_index]
 
                 if pattern == 0: tile_buffer[0:8] = [a, b, a, b, a, b, a, b]
                 if pattern == 1: tile_buffer[0:8] = [a, a, b, a, a, b, a, a]
@@ -444,9 +442,9 @@ class KWZParser:
           # isolate 2-bit sample
           sample = (byte >> bit_pos) & 0x3
           # get diff
-          diff = prev_diff + self.adpcm_sample_table_2[sample + 4 * prev_step_index]
+          diff = prev_diff + ADPCM_SAMPLE_TABLE_2[sample + 4 * prev_step_index]
           # get step index
-          step_index = prev_step_index + self.adpcm_index_table_2[sample]
+          step_index = prev_step_index + ADPCM_INDEX_TABLE_2[sample]
           bit_pos += 2
 
         # else read a 4-bit sample
@@ -454,9 +452,9 @@ class KWZParser:
           # isolate 4-bit sample
           sample = (byte >> bit_pos) & 0xF
           # get diff
-          diff = prev_diff + self.adpcm_sample_table_4[sample + 16 * prev_step_index]
+          diff = prev_diff + ADPCM_SAMPLE_TABLE_4[sample + 16 * prev_step_index]
           # get step index
-          step_index = prev_step_index + self.adpcm_index_table_4[sample]
+          step_index = prev_step_index + ADPCM_INDEX_TABLE_4[sample]
           bit_pos += 4
 
         # clamp step index and diff
