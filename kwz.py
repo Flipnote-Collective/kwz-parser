@@ -62,14 +62,14 @@ TABLE_2= np.array([
 # table3 - line offsets, but the lines are shifted to the left by one pixel
 TABLE_3 = np.zeros((6561), dtype=np.uint16)
 index = 0
-for a range(0, 2187, 729):
-  for b range(0, 729, 243):
-    for c range(0, 243, 81):
-      for d range(0, 81, 27):
-        for e range(0, 27, 9):
-          for f range(0, 9, 3):
-            for g range(0, 3, 1):
-              for h range(0, 6561, 2187):
+for a in range(0, 2187, 729):
+  for b in range(0, 729, 243):
+    for c in range(0, 243, 81):
+      for d in range(0, 81, 27):
+        for e in range(0, 27, 9):
+          for f in range(0, 9, 3):
+            for g in range(0, 3, 1):
+              for h in range(0, 6561, 2187):
                 TABLE_3[index] = a + b + c + d + e + f + g + h
                 index += 1
 
