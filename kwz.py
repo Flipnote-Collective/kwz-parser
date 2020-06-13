@@ -217,6 +217,14 @@ class KWZParser:
     self.bit_value >>= num
     self.bit_index += num
     return result
+  
+  def decode_filename(self, raw_filename):
+    try:
+      return raw_filename.decode("ascii")
+    except UnicodeDecodeError:
+      # in some DSi Gallery notes, Nintendo actually messed up and included the PPM-format filename without converting it
+      mac, ident, edits = struct.unpack("<3s13sH", raw_filename[0:18])
+      return "{0}_{1}_{2:03d}".format("".join(["%02X" % c for c in mac]), ident.decode("ascii"), edits) 
 
   def decode_meta(self):
     self.buffer.seek(self.sections["KFH"]["offset"] + 12)
@@ -242,20 +250,19 @@ class KWZParser:
       "root": {
         "username": root_author_name.decode("utf-16").rstrip("\x00"),
         "fsid": root_author_id.hex(),
-        "filename": root_filename.decode(),
+        "filename": self.decode_filename(root_filename),
       },
       "parent": {
         "username": parent_author_name.decode("utf-16").rstrip("\x00"),
         "fsid": parent_author_id.hex(),
-        "filename": parent_filename.decode(),
+        "filename": self.decode_filename(parent_filename),
       },
       "current": {
         "username": current_author_name.decode("utf-16").rstrip("\x00"),
         "fsid": current_author_id.hex(),
-        "filename": current_filename.decode(),
+        "filename": self.decode_filename(current_filename)
       }
     }
-    print(self.meta)
     return self.meta
 
   def get_diffing_flag(self, frame_index):
