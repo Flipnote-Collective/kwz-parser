@@ -159,7 +159,7 @@ class KWZParser:
     while offset < self.size:
       self.buffer.seek(offset)
       magic, length = struct.unpack("<3sxI", self.buffer.read(8))
-      self.sections[str(magic, 'utf-8')] = {"offset": offset, "length": length}
+      self.sections[str(magic, 'ascii')] = {"offset": offset, "length": length}
       offset += length + 8
 
     # read file header -- not present in folder icons
@@ -242,19 +242,20 @@ class KWZParser:
       "root": {
         "username": root_author_name.decode("utf-16").rstrip("\x00"),
         "fsid": root_author_id.hex(),
-        "filename": root_filename.decode("utf-8"),
+        "filename": root_filename.decode(),
       },
       "parent": {
         "username": parent_author_name.decode("utf-16").rstrip("\x00"),
         "fsid": parent_author_id.hex(),
-        "filename": parent_filename.decode("utf-8"),
+        "filename": parent_filename.decode(),
       },
       "current": {
         "username": current_author_name.decode("utf-16").rstrip("\x00"),
         "fsid": current_author_id.hex(),
-        "filename": current_filename.decode("utf-8"),
+        "filename": current_filename.decode(),
       }
     }
+    print(self.meta)
     return self.meta
 
   def get_diffing_flag(self, frame_index):
