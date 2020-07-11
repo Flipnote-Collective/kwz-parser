@@ -470,7 +470,7 @@ class KWZParser:
 
         # clamp step index and diff
         step_index = max(0, min(step_index, 79))
-        diff = max(-2048, min(diff, 2048))
+        diff = max(-2047, min(diff, 2047))
 
         # add result to output buffer
         output[outputOffset] = diff * 16
