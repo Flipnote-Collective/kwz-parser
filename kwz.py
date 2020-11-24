@@ -441,6 +441,7 @@ class KWZParser:
 
     # initial decoder state
     prev_diff = 0
+    # this is actually a bug in nintendo's own implementation, use 0 instead for nicer-souding (but not console-accurate) audio
     prev_step_index = 40
 
     for byte in self.buffer.read(size):
@@ -449,7 +450,7 @@ class KWZParser:
       while bit_pos < 8:
 
         # read a 2-bit sample if the previous step index is < 18, or if only 2 bits are left of the byte
-        if prev_step_index < 18 or bit_pos == 6:
+        if prev_step_index < 18 or bit_pos > 4:
           # isolate 2-bit sample
           sample = (byte >> bit_pos) & 0x3
           # get diff
@@ -470,7 +471,7 @@ class KWZParser:
 
         # clamp step index and diff
         step_index = max(0, min(step_index, 79))
-        diff = max(-2047, min(diff, 2047))
+        diff = max(-2048, min(diff, 2047))
 
         # add result to output buffer
         output[outputOffset] = diff * 16
@@ -485,3 +486,5 @@ class KWZParser:
 if __name__ == "__main__":
   from sys import argv
   KWZParser.open(argv[1])
+
+# TODO: audio track mixing
