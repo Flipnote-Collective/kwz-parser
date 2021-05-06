@@ -49,7 +49,7 @@ Experimental kwz to mp4 encoder using [ffmpeg](https://www.ffmpeg.org/). Tries t
 Usage: 
 
 ```bash
-python kwzVideo.py <input.kwz> <output.kwz>
+python kwzVideo.py <input.kwz> <output.mp4>
 ```
 
 ### kwzAudio
