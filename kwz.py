@@ -117,8 +117,8 @@ for sample in range (4):
   for step_index in range(90):
     step = ADPCM_STEP_TABLE[step_index]
     diff = step >> 3
-    if (sample & 1): diff += step;
-    if (sample & 2): diff = -diff;
+    if (sample & 1): diff += step
+    if (sample & 2): diff = -diff
     ADPCM_SAMPLE_TABLE_2[sample + 4 * step_index] = diff
 
 # lookup table that maps 4-bit adpcm sample values to pcm samples
@@ -126,11 +126,11 @@ ADPCM_SAMPLE_TABLE_4 = np.zeros(90 * 16, dtype=np.int16)
 for sample in range (16):
   for step_index in range(90):
     step = ADPCM_STEP_TABLE[step_index]
-    diff = step >> 3;
-    if (sample & 4): diff += step;
-    if (sample & 2): diff += step >> 1;
-    if (sample & 1): diff += step >> 2;
-    if (sample & 8): diff = -diff;
+    diff = step >> 3
+    if (sample & 4): diff += step
+    if (sample & 2): diff += step >> 1
+    if (sample & 1): diff += step >> 2
+    if (sample & 8): diff = -diff
     ADPCM_SAMPLE_TABLE_4[sample + 16 * step_index] = diff
 
 class KWZParser:
@@ -436,7 +436,7 @@ class KWZParser:
     self.buffer.seek(offset)
 
     # create an output buffer with enough space for 60 seconds of audio at 16364 Hz
-    output = np.zeros(16364 * 60, dtype="<u2");
+    output = np.zeros(16364 * 60, dtype="<u2")
     outputOffset = 0
 
     # initial decoder state
