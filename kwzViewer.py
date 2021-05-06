@@ -61,29 +61,33 @@ class frameSurface:
     surface.blit(self.layer1.get_surface(self.size), pos)
 
 
-with open(argv[1], "rb") as kwz:
-  parser = KWZParser(kwz)
-  screen = pygame.display.set_mode((320*2, 240*2))
-  frame = frameSurface((320*2, 240*2))
+if len(argv) != 2:
+    print("\nUsage: python3 kwzViewer.py <input.kwz>\n")
+    exit(1)
+else:
+  with open(argv[1], "rb") as kwz:
+    parser = KWZParser(kwz)
+    screen = pygame.display.set_mode((320*2, 240*2))
+    frame = frameSurface((320*2, 240*2))
 
-  pygame.init()
-  pygame.display.set_caption("crappy proof-of-concept kwz player™")
+    pygame.init()
+    pygame.display.set_caption("crappy proof-of-concept kwz player™")
 
-  done = False
-  frame_index = 0
+    done = False
+    frame_index = 0
 
-  while not done:
-    for event in pygame.event.get():
-      if event.type == pygame.QUIT:
-        done = True
+    while not done:
+      for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+          done = True
 
-    frame.set_layers(parser.decode_frame(frame_index))
-    frame.set_colors(parser.get_frame_palette(frame_index))
-    # print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
-    if frame_index == parser.frame_count - 1:
-      frame_index = 0
-    else:
-      frame_index += 1
+      frame.set_layers(parser.decode_frame(frame_index))
+      frame.set_colors(parser.get_frame_palette(frame_index))
+      # print("Decoded frame:", frameIndex, "flag:", parser.get_frame_flag(frameIndex))
+      if frame_index == parser.frame_count - 1:
+        frame_index = 0
+      else:
+        frame_index += 1
 
-    frame.blit_to(screen, (0, 0))
-    pygame.display.flip()
+      frame.blit_to(screen, (0, 0))
+      pygame.display.flip()
