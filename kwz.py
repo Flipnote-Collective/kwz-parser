@@ -247,9 +247,7 @@ class KWZParser:
     self.seek(self.sections[type]['offset'])
 
   def seek(self, offset: int, whence: int = 0):
-    if whence == 2:
-        self.offset = self.size + offset
-    elif whence == 1:
+    if whence == 1:
         self.offset += offset
     else:
         self.offset = offset
