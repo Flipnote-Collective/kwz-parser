@@ -149,6 +149,7 @@ class KWZParser:
 
   def load(self, buffer):
     self.buffer = buffer
+    self.data = self.buffer
     # lazy way to get file length - seek to the end (ignore signature), get the position, then seek back to the start
     self.buffer.seek(0, 2)
     self.size = self.buffer.tell() - 256
@@ -225,6 +226,37 @@ class KWZParser:
       # in some DSi Gallery notes, Nintendo actually messed up and included the PPM-format filename without converting it
       mac, ident, edits = struct.unpack("<3s13sH", raw_filename[0:18])
       return "{0}_{1}_{2:03d}".format("".join(["%02X" % c for c in mac]), ident.decode("ascii"), edits) 
+
+  def get_section_data(self, type):
+    section_start = 0
+    section_size = 0
+    if type == 'KMI':
+        section_start = 8
+        section_size = self.sections[type]['length']
+    elif type == 'KSN':
+        section_start = 36
+        section_size = self.sections[type]['length'] - 28
+    else:
+        section_start = 12
+        section_size = self.sections[type]['length'] - 4
+    self.seek_to_section(type)
+    self.seek(section_start, 1)
+    return self.read(section_size)
+  
+  def seek_to_section(self, type):
+    self.seek(self.sections[type]['offset'])
+
+  def seek(self, offset: int, whence: int = 0):
+    if whence == 1:
+        self.offset += offset
+    else:
+        self.offset = offset
+    self.data.seek(0)
+    self.data.seek(self.offset)
+
+  def read(self, nbytes: int = 1, offset: int = None):
+    ret = self.data.read(nbytes)
+    return ret
 
   def decode_meta(self):
     self.buffer.seek(self.sections["KFH"]["offset"] + 12)
