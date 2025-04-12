@@ -1,3 +1,5 @@
+>> This project has not been updated for some time and does not reflect the latest findings of our reverse-engineering efforts. For now, please refer to [flipnote.js](https://github.com/jaames/flipnote.js/blob/master/src/parsers/KwzParser.ts), as that is the closest thing to an up-to-date reference implementation.
+
 Experimental decoder and utilities (image/video conversion, etc) for Flipnote Studio 3D's .kwz animation format. Frames and audio can both be decoded without any problems.
 
 All scripts were written for Python 3.7 and require the [numpy](http://www.numpy.org/) module to be installed.
